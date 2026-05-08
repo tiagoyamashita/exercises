@@ -13,16 +13,14 @@ def run_pytest(
     node_id: str | None = None,
     timeout: int = 600,
 ) -> tuple[int, str]:
-    """Run pytest, write JUnit to ``reports/junit.xml``. Returns (exit_code, combined_log)."""
+    """Run pytest; XML report path comes from ``pyproject.toml`` ``addopts`` (``--junitxml=reports/junit.xml``)."""
     root = project_root.resolve()
-    out_xml = report_xml_path(root)
-    out_xml.parent.mkdir(parents=True, exist_ok=True)
+    report_xml_path(root).parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         sys.executable,
         "-m",
         "pytest",
         "-v",
-        f"--junitxml={out_xml}",
         "--tb=short",
     ]
     if node_id:

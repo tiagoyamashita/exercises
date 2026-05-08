@@ -20,6 +20,18 @@ def resolve_project_root() -> Path:
     if override:
         return Path(override).expanduser().resolve()
     here = Path(__file__).resolve()
+    # Editable layout: <root>/src/exercises/web/app.py — tests and reports live under <root>.
+    if (
+        here.name == "app.py"
+        and here.parent.name == "web"
+        and len(here.parents) > 3
+    ):
+        candidate = here.parents[3]
+        if (candidate / "pyproject.toml").is_file() and (candidate / "tests").is_dir():
+            return candidate
+    for parent in here.parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "tests").is_dir():
+            return parent
     for parent in here.parents:
         if (parent / "pyproject.toml").is_file():
             return parent
@@ -38,11 +50,20 @@ def create_app() -> Flask:
     app.secret_key = os.environ.get("SECRET_KEY", "dev-exercises-web")
     app.config["PROJECT_ROOT"] = resolve_project_root()
 
+    @app.after_request
+    def no_store_for_home(response):
+        if request.endpoint == "home":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     @app.route("/")
     def home() -> str:
         root: Path = app.config["PROJECT_ROOT"]
-        test_results = load_latest_results(root)
         jpath = report_xml_path(root)
+        has_report_file = jpath.is_file()
+        test_results = load_latest_results(root)
         if jpath.is_file():
             report_sources = [str(jpath.resolve())]
         else:
@@ -54,6 +75,9 @@ def create_app() -> Flask:
             "home.html",
             test_results=test_results,
             report_sources=report_sources,
+            has_report_file=has_report_file,
+            report_xml_resolved=str(jpath.resolve()),
+            project_root=str(root.resolve()),
             test_run_message=test_run_message,
             test_run_error=test_run_error,
             test_run_log_tail=test_run_log_tail,
@@ -75,6 +99,13 @@ def create_app() -> Flask:
             return redirect(url_for("home"))
         tail = log[-12000:] if len(log) > 12000 else log
         session["test_run_log_tail"] = tail
+        if "No module named pytest" in log or "No module named 'pytest'" in log:
+            session["test_run_error"] = (
+                "pytest is not installed in this Python environment. "
+                "Use the project venv and install dev deps (e.g. pip install -r requirements-dev.txt)."
+            )
+            session.pop("test_run_message", None)
+            return redirect(url_for("home"))
         if rc == 0:
             session["test_run_message"] = "Pytest finished (exit code 0)."
         else:
