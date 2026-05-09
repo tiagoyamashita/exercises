@@ -1,4 +1,6 @@
 /target/
-/reports/
+# Ignore generated artifacts under reports/ except the committed seed JUnit file.
+/reports/*
+!/reports/junit.xml
 **/*.rs.bk
 Cargo.lock

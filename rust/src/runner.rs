@@ -2,7 +2,7 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
-/// Run `cargo nextest` with the `dashboard` profile (writes `reports/junit.xml` per `.config/nextest.toml`).
+/// Run `cargo nextest` with the `dashboard` profile. JUnit is written under `target/nextest/dashboard/junit.xml` (see `.config/nextest.toml`).
 pub fn run_nextest(project_root: &Path, filter_expr: Option<&str>) -> io::Result<(i32, String)> {
     let mut cmd = Command::new("cargo");
     cmd.current_dir(project_root);

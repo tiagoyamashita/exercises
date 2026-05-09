@@ -43,9 +43,9 @@ fi
 
   if [[ "$SKIP_NEXTEST" -eq 0 ]]; then
     echo "== cargo-nextest (latest, else 0.9.128) =="
-    if ! cargo install cargo-nextest; then
+    if ! cargo install --locked cargo-nextest; then
       echo "Latest cargo-nextest failed; installing 0.9.128 (works with rustc 1.89)." >&2
-      cargo install cargo-nextest --version 0.9.128
+      cargo install --locked cargo-nextest --version 0.9.128
     fi
   else
     echo "Skipping cargo-nextest (--skip-nextest)."

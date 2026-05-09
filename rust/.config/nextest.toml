@@ -2,4 +2,5 @@
 # Human-friendly output in the UI log; JUnit goes to reports/ (see junit section).
 
 [profile.dashboard.junit]
-path = "reports/junit.xml"
+# Resolved under target/nextest/dashboard/junit.xml (see nextest docs). The web UI reads that path first, then reports/junit.xml.
+path = "junit.xml"

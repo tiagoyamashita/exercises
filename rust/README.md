@@ -1,17 +1,16 @@
 # Rust exercises (test dashboard)
 
-A small **Axum + Tera** app that mirrors the Python dashboard: it reads **JUnit XML** from `reports/junit.xml`, shows pass/fail/skip in a table, runs **`cargo nextest`** from the UI, and can open a **source** modal (best-effort path mapping from the test’s Rust path).
+A small **Axum + Tera** app that mirrors the Python dashboard: it reads **JUnit XML** from **`target/nextest/dashboard/junit.xml`** (after nextest) or **`reports/junit.xml`** (optional seed), shows pass/fail/skip in a table, runs **`cargo nextest`** from the UI, and can open a **source** modal (best-effort path mapping from the test’s Rust path).
 
 ## Prerequisites
 
 - [Rust toolchain](https://rustup.rs/) (stable). This crate declares **`rust-version = "1.85"`** in `Cargo.toml` and includes **`rust-toolchain.toml`** (`channel = "stable"`) so **rustup** picks stable when you work under **`rust/`**. Use **rustup’s** `cargo` (~/.cargo/bin); distro packages (e.g. Ubuntu **1.75**) are too old for current dependencies. **First-time install:** see **[First-time Rust install (rustup)](#first-time-rust-install-rustup)**. A **recent** stable also avoids pinning when installing **cargo-nextest** (see below).
 - **cargo-nextest** (the UI runs `cargo nextest`). Install either:
   - **Latest** (needs a current stable rustc, e.g. 1.91+ as required by recent nextest):  
-    `cargo install cargo-nextest`
-  - **Pinned** if `cargo install cargo-nextest` errors on MSRV (example when you are on **1.89**):  
-    `cargo install cargo-nextest --version 0.9.128`  
-    (Cargo often prints a concrete version that matches your toolchain.)
-  - Or upgrade the compiler first: `rustup update stable`, then run `cargo install cargo-nextest` again.
+    **`cargo install --locked cargo-nextest`** (nextest [requires `--locked`](https://nexte.st/docs/installation/from-source/) when installing from crates.io.)
+  - **Pinned** if that errors on MSRV (example when you are on **1.89**):  
+    `cargo install --locked cargo-nextest --version 0.9.128`
+  - Or upgrade the compiler first: `rustup update stable`, then run **`cargo install --locked cargo-nextest`** again.
 
 Installing nextest **also compiles Rust code**, so you need a working linker (see Windows below) before `cargo install` will succeed.
 
@@ -119,7 +118,7 @@ cargo build
 
 If the linker is missing, errors will mention `cc` / `gcc` / `linking with gcc failed`—fix `PATH` to the MinGW `bin` first. A GNU build can also fail with **`dlltool.exe`**: program not found; that is the same class of fix (full MinGW `bin` on `PATH`).
 
-**4. Rest of this README** (`cargo install cargo-nextest`, `cargo run --bin exercises-web`, `cargo nextest`) works the same once `cargo build` succeeds.
+**4. Rest of this README** (`cargo install --locked cargo-nextest`, `cargo run --bin exercises-web`, `cargo nextest`) works the same once `cargo build` succeeds.
 
 **Switching back to MSVC** (after you install the C++ build tools):  
 `rustup default stable-x86_64-pc-windows-msvc` (or `rustup default stable` if that is your MSVC toolchain name).
@@ -155,7 +154,7 @@ If you want to avoid **MSVC**, **MinGW**, and **`link.exe` / `dlltool.exe`** on 
    chmod +x scripts/resetup_rust_env.sh && ./scripts/resetup_rust_env.sh
    ```
 
-   Or manually: `cargo install cargo-nextest`, then `cargo build` / `cargo run --bin exercises-web`.
+   Or manually: **`cargo install --locked cargo-nextest`**, then `cargo build` / `cargo run --bin exercises-web`.
 
 6. Open the app in **Chrome or Edge on Windows** at [http://127.0.0.1:8082](http://127.0.0.1:8082). WSL2 forwards **localhost** to the Linux guest by default.
 
@@ -178,7 +177,7 @@ Optional:
 
 ## Reports
 
-The **`dashboard`** nextest profile writes JUnit XML to **`reports/junit.xml`** (see `.config/nextest.toml`). After **`Run all tests`** in the UI (or `cargo nextest run --profile dashboard`), refresh the page to see rows.
+The **`dashboard`** nextest profile writes JUnit XML to **`target/nextest/dashboard/junit.xml`** (nextest stores the path relative to that directory; see `.config/nextest.toml`). The UI also falls back to **`reports/junit.xml`** if the nextest file is absent. After **`Run all tests`** in the UI (or `cargo nextest run --profile dashboard`), refresh the page to see rows.
 
 ## Re-run one test
 

@@ -136,8 +136,44 @@ fn nextest_filter_for(test_name: &str) -> String {
     format!("test(^{}$)", regex::escape(test_name))
 }
 
+/// Optional seed / manual copy (`reports/junit.xml`).
 pub fn report_xml_path(project_root: &Path) -> PathBuf {
     project_root.join("reports").join("junit.xml")
+}
+
+/// JUnit file produced by **`cargo nextest run --profile dashboard`** (path is relative to `target/nextest/dashboard/` in nextest).
+pub fn nextest_dashboard_junit_path(project_root: &Path) -> PathBuf {
+    project_root
+        .join("target")
+        .join("nextest")
+        .join("dashboard")
+        .join("junit.xml")
+}
+
+fn resolve_existing_report_path(project_root: &Path) -> Option<PathBuf> {
+    let nextest = nextest_dashboard_junit_path(project_root);
+    if nextest.is_file() {
+        return Some(nextest);
+    }
+    let legacy = report_xml_path(project_root);
+    if legacy.is_file() {
+        return Some(legacy);
+    }
+    None
+}
+
+/// Which JUnit file the dashboard is displaying, if any.
+pub fn resolve_existing_report_path_for_ui(project_root: &Path) -> Option<PathBuf> {
+    resolve_existing_report_path(project_root)
+}
+
+/// Message when no report is present: both locations work on Windows, WSL, and Linux.
+pub fn report_xml_missing_hint(project_root: &Path) -> String {
+    format!(
+        "{} or {}",
+        nextest_dashboard_junit_path(project_root).display(),
+        report_xml_path(project_root).display()
+    )
 }
 
 pub fn parse_junit_file(path: &Path, _project_root: &Path) -> Vec<TestRow> {
@@ -206,14 +242,20 @@ pub fn parse_junit_file(path: &Path, _project_root: &Path) -> Vec<TestRow> {
 }
 
 pub fn load_latest_results(project_root: &Path) -> Vec<TestRow> {
-    let path = report_xml_path(project_root);
-    if !path.is_file() {
+    let Some(path) = resolve_existing_report_path(project_root) else {
         return Vec::new();
-    }
+    };
     parse_junit_file(&path, project_root)
 }
 
 pub fn existing_report_hints(project_root: &Path) -> Vec<String> {
-    let d = crate::flash::reports_dir(project_root);
-    vec![d.to_string_lossy().into_owned()]
+    vec![
+        nextest_dashboard_junit_path(project_root)
+            .to_string_lossy()
+            .into_owned(),
+        crate::flash::reports_dir(project_root)
+            .join("junit.xml")
+            .to_string_lossy()
+            .into_owned(),
+    ]
 }

@@ -76,18 +76,22 @@ struct HomePage {
 async fn home(State(state): State<AppState>) -> Result<Html<String>, StatusCode> {
     let flash = crate::flash::take_flash(&state.project_root);
     let rows = crate::junit::load_latest_results(&state.project_root);
-    let jpath = crate::junit::report_xml_path(&state.project_root);
-    let has_report_file = jpath.is_file();
-    let report_sources = if has_report_file {
-        vec![jpath.to_string_lossy().into_owned()]
+    let resolved = crate::junit::resolve_existing_report_path_for_ui(&state.project_root);
+    let has_report_file = resolved.is_some();
+    let report_sources = if let Some(ref p) = resolved {
+        vec![p.to_string_lossy().into_owned()]
     } else {
         crate::junit::existing_report_hints(&state.project_root)
     };
+    let report_xml_resolved = resolved
+        .as_ref()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| crate::junit::report_xml_missing_hint(&state.project_root));
     let page = HomePage {
         test_results: rows,
         report_sources,
         has_report_file,
-        report_xml_resolved: jpath.to_string_lossy().into_owned(),
+        report_xml_resolved,
         project_root: state.project_root.to_string_lossy().into_owned(),
         test_run_message: flash.message,
         test_run_error: flash.error,
@@ -114,7 +118,7 @@ async fn run_tests_post(State(state): State<AppState>, Form(form): Form<RunForm>
         Ok(x) => x,
         Err(e) => {
             flash.error = Some(format!(
-                "Could not run cargo nextest ({e}). Install: cargo install cargo-nextest"
+                "Could not run cargo nextest ({e}). Install: cargo install --locked cargo-nextest"
             ));
             crate::flash::write_flash(&state.project_root, &flash);
             return Redirect::to("/");
@@ -130,7 +134,7 @@ async fn run_tests_post(State(state): State<AppState>, Form(form): Form<RunForm>
         || log.contains("requires the `nextest` subcommand")
     {
         flash.error =
-            Some("cargo-nextest is required. Install: cargo install cargo-nextest".into());
+            Some("cargo-nextest is required. Install: cargo install --locked cargo-nextest".into());
     } else if code == 0 {
         flash.message = Some("cargo nextest finished (exit code 0).".into());
     } else {

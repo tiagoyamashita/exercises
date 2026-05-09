@@ -193,7 +193,7 @@
 
     <form method="post" action="/tests/run" class="run-bar">
       <button type="submit">Run all tests</button>
-      <p class="hint"><strong>Local use:</strong> runs <code>cargo nextest run --profile dashboard</code> in <code>{{ project_root }}</code>. JUnit report: <code>reports/junit.xml</code> (see <code>.config/nextest.toml</code>). Requires <code>cargo install cargo-nextest</code>.</p>
+      <p class="hint"><strong>Local use:</strong> runs <code>cargo nextest run --profile dashboard</code> in <code>{{ project_root }}</code>. JUnit: <code>target/nextest/dashboard/junit.xml</code> (and optionally seed <code>reports/junit.xml</code> &mdash; see <code>.config/nextest.toml</code>). Requires <code>cargo install --locked cargo-nextest</code>.</p>
     </form>
 
     {% if test_results | length == 0 %}

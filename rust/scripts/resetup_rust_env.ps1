@@ -4,7 +4,7 @@
   Re-applies Rust tooling for rust/ (rustup stable, cargo-nextest, cargo build).
 
 .PARAMETER SkipNextest
-  Do not run cargo install cargo-nextest.
+  Do not run cargo install --locked cargo-nextest.
 
 .PARAMETER SkipBuild
   Do not run cargo build.
@@ -92,7 +92,7 @@ link.exe is not on this shell's PATH. Use one of these, then re-run this script 
 MSVC linker (link.exe) not on PATH. Host: $rustHost
 cargo cannot compile until the MSVC tools are installed and visible to this terminal.
 Install: Visual Studio Build Tools with workload 'Desktop development with C++' (see rust/README.md).
-Skipping: cargo install cargo-nextest and cargo build.
+Skipping: cargo install --locked cargo-nextest and cargo build.
 $vsHint
 "@
     }
@@ -110,16 +110,16 @@ $vsHint
         $needsPinnedNextest = ($rustcVer -ne $null) -and ($rustcVer -lt [version]'1.91.0')
         if ($needsPinnedNextest) {
             Write-Host "rustc $rustcVer is below 1.91; installing cargo-nextest 0.9.128 directly."
-            & cargo install cargo-nextest --version 0.9.128
+            & cargo install --locked cargo-nextest --version 0.9.128
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "cargo install cargo-nextest 0.9.128 failed (exit $LASTEXITCODE)."
+                Write-Warning "cargo install --locked cargo-nextest 0.9.128 failed (exit $LASTEXITCODE)."
             }
         }
         else {
-            & cargo install cargo-nextest
+            & cargo install --locked cargo-nextest
             if ($LASTEXITCODE -ne 0) {
                 Write-Warning "Latest cargo-nextest failed; trying 0.9.128 (older rustc)."
-                & cargo install cargo-nextest --version 0.9.128
+                & cargo install --locked cargo-nextest --version 0.9.128
                 if ($LASTEXITCODE -ne 0) {
                     Write-Warning "cargo-nextest 0.9.128 also failed (exit $LASTEXITCODE). If errors mentioned link.exe, install MSVC Build Tools - see rust/README.md."
                 }
