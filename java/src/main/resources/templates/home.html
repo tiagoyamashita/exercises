@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8"/>
     <meta name="color-scheme" content="dark light"/>
-    <title>Home</title>
+    <title>Test dashboard</title>
     <style>
       :root {
         color-scheme: dark;
@@ -43,7 +43,8 @@
         color: var(--text);
       }
       body.source-modal-open { overflow: hidden; }
-      h2 { color: var(--text); font-weight: 600; margin-top: 0; }
+      h2 { color: var(--text); font-weight: 600; margin-top: 1.75rem; }
+      h2:first-of-type { margin-top: 0; }
       table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
       th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
       th { background: var(--th-bg); color: var(--text); }
@@ -90,7 +91,32 @@
         word-break: break-word;
         border: 1px solid var(--border);
       }
-      .source-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem; box-sizing: border-box; }
+      .test-run-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+        margin: 0.5rem 0 0.75rem;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--th-bg);
+      }
+      .btn {
+        cursor: pointer;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--code-bg);
+        color: var(--text);
+      }
+      .btn:hover { filter: brightness(1.08); }
+      .btn.primary { border-color: var(--passed); color: var(--passed); }
+      .btn.small { padding: 0.25rem 0.55rem; font-size: 0.82rem; }
+      .col-check { width: 3rem; text-align: center; }
+      .test-method-source-btn {
         cursor: pointer;
         font: inherit;
         color: var(--text);
@@ -143,17 +169,141 @@
         background: var(--code-bg);
         color: var(--code-text);
       }
+      .status-present { color: var(--passed); font-weight: 600; }
+      .status-missing { color: var(--skipped); font-weight: 600; }
+      .notes-textarea {
+        width: 100%;
+        min-height: 3.25rem;
+        font-family: inherit;
+        font-size: 0.85rem;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        resize: vertical;
+        box-sizing: border-box;
+      }
+      .global-notes-block { margin-top: 1rem; max-width: 52rem; }
+      .global-notes-block label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: var(--muted); }
     </style>
   </head>
   <body>
-    <h2>Test results</h2>
+    <h2>Tests to create (curriculum)</h2>
+    <p class="hint">
+      Compare each row to your tree under <code>src/test/java</code>. <strong>Missing</strong> means there is no
+      <code>*Test.java</code> with that fully qualified name yet. Edit notes below and click <strong>Save notes</strong>
+      — they are stored in <code th:text="${dashboardNotesPath}">reports/…</code> (JSON, safe to commit or gitignore).
+      Curriculum list is defined in <code>src/main/resources/exercises/required-tests.json</code>.
+    </p>
+    <p th:if="${notesSaved}" class="flash-ok" th:text="${notesSaved}"></p>
+    <p th:if="${notesSaveError}" class="flash-err" th:text="${notesSaveError}"></p>
+
+    <form th:action="@{/dashboard/notes}" method="post" id="curriculum-notes-form">
+      <div class="results-table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Exercise</th>
+              <th>Status</th>
+              <th>Expected test class</th>
+              <th>Target file (under Maven root)</th>
+              <th>Your notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="row : ${requiredRows}">
+              <td>
+                <strong th:text="${row.spec.title}">Title</strong>
+                <div class="hint" style="margin-top:0.35rem;" th:text="${row.spec.hint}">hint</div>
+              </td>
+              <td>
+                <span th:if="${row.filePresent}" class="status-present">Present</span>
+                <span th:if="${!row.filePresent}" class="status-missing">Missing — create file</span>
+              </td>
+              <td><code th:text="${row.spec.targetFqcn}">fqcn</code></td>
+              <td><code th:text="${row.suggestedPath}">path</code></td>
+              <td>
+                <textarea
+                    class="notes-textarea"
+                    th:name="'note_' + ${row.spec.id}"
+                    th:text="${row.noteDraft}"
+                    th:attr="aria-label=${'Notes for ' + row.spec.title}"
+                    placeholder="Scratchpad for this exercise…"></textarea>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="global-notes-block">
+        <label for="globalNotes">Workspace notes (everything else)</label>
+        <textarea class="notes-textarea" id="globalNotes" name="globalNotes" rows="5" th:text="${exerciseNotes.globalNotes}" placeholder="Ideas, commands, links…"></textarea>
+      </div>
+      <div class="test-run-bar" style="margin-top: 0.75rem;">
+        <button type="submit" class="btn primary">Save notes</button>
+      </div>
+    </form>
+
+    <h2>Tests in project</h2>
+    <p class="hint">
+      Every <code>*Test.java</code> under <code>src/test/java</code> is listed. Choose rows and <strong>Run selected</strong>,
+      or use <strong>Run</strong> on one class. This runs <code>mvn test -Dtest=…</code> on the Maven module (requires
+      <code>mvn</code> or <code>mvnw</code> on the server <code>PATH</code>).
+    </p>
+    <p th:if="${discoveryError}" class="flash-err" th:text="${discoveryError}"></p>
+
+    <div th:if="${discoveredTests.isEmpty()}" class="hint">
+      No test classes discovered. Expected tree: <code>…/src/test/java/**/*Test.java</code> relative to the Maven root.
+    </div>
+
+    <th:block th:if="${!discoveredTests.isEmpty()}">
+      <form id="bulk-test-form" th:action="@{/tests/run}" method="post">
+        <div class="test-run-bar">
+          <button type="submit" class="btn primary">Run selected</button>
+          <button type="button" class="btn" id="test-select-all" title="Check every row">Select all</button>
+          <button type="button" class="btn" id="test-select-none" title="Uncheck every row">Clear selection</button>
+        </div>
+      </form>
+      <div class="results-table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th class="col-check">Mark</th>
+              <th class="cell-pkg">Package</th>
+              <th class="cell-class">Class</th>
+              <th>Fully qualified name</th>
+              <th>Run one</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="t : ${discoveredTests}">
+              <td class="col-check">
+                <input type="checkbox" name="testClass" th:value="${t.fqcn}" form="bulk-test-form" th:attr="aria-label=${'Select ' + t.fqcn}"/>
+              </td>
+              <td class="cell-pkg" th:text="${t.javaPackage}">pkg</td>
+              <td class="cell-class" th:text="${t.simpleName}">Test</td>
+              <td><code th:text="${t.fqcn}">fqcn</code></td>
+              <td>
+                <form th:action="@{/tests/run}" method="post" style="display: inline;">
+                  <input type="hidden" name="testClass" th:value="${t.fqcn}"/>
+                  <button type="submit" class="btn small">Run</button>
+                </form>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </th:block>
+
+    <h2>Last Surefire results</h2>
     <p th:if="${testRunMessage}" class="flash-ok" th:text="${testRunMessage}"></p>
     <p th:if="${testRunError}" class="flash-err" th:text="${testRunError}"></p>
     <pre th:if="${testRunLogTail}" class="log-tail" th:text="${testRunLogTail}"></pre>
 
     <p th:if="${testResults.isEmpty()}" class="hint">
       No Surefire <code>TEST-*.xml</code> files found. Checked:
-      <th:block th:if="${reportSources.isEmpty()}"><em>(no existing report folders — run <code>mvn test</code> first)</em></th:block>
+      <th:block th:if="${reportSources.isEmpty()}"><em>(no existing report folders — run tests above or <code>mvn test</code>)</em></th:block>
       <th:block th:each="src, it : ${reportSources}">
         <code th:text="${src}"></code><span th:if="${!it.last}"> · </span>
       </th:block>
@@ -220,6 +370,21 @@
     <script th:inline="javascript">
       /*<![CDATA[*/
       (function () {
+        var form = document.getElementById('bulk-test-form');
+        var selAll = document.getElementById('test-select-all');
+        var selNone = document.getElementById('test-select-none');
+        if (form && selAll && selNone) {
+          selAll.addEventListener('click', function () {
+            document.querySelectorAll('input[type="checkbox"][name="testClass"][form="bulk-test-form"]').forEach(function (c) {
+              c.checked = true;
+            });
+          });
+          selNone.addEventListener('click', function () {
+            document.querySelectorAll('input[type="checkbox"][name="testClass"][form="bulk-test-form"]').forEach(function (c) {
+              c.checked = false;
+            });
+          });
+        }
         var modal = document.getElementById('source-modal');
         var pathEl = document.getElementById('source-modal-path');
         var preEl = document.getElementById('source-modal-pre');

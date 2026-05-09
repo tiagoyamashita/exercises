@@ -12,5 +12,6 @@
   "testing.gutterEnabled": true,
   "testing.openTesting": "openOnTestStart",
 
-  "java.test.editor.enableShortcuts": true
+  "java.test.editor.enableShortcuts": true,
+  "testing.automaticallyOpenTestResults": "openOnTestStart"
 }
