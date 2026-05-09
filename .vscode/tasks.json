@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Java: Run all tests (Maven)",
+      "type": "shell",
+      "command": "mvn -f \"${workspaceFolder}/java/pom.xml\" test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true,
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Java: Run tests in active file (Maven -Dtest)",
+      "type": "shell",
+      "command": "mvn -f \"${workspaceFolder}/java/pom.xml\" test \"-Dtest=${fileBasenameNoExtension}\"",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true,
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

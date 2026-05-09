@@ -1,4 +1,16 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "java.compile.nullAnalysis.mode": "automatic"
+  // Java test runs: use Terminal panel (keep View → Appearance → Panel Position → Bottom).
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.compile.nullAnalysis.mode": "automatic",
+
+  "java.debug.settings.console": "integratedTerminal",
+
+  "terminal.integrated.defaultLocation": "view",
+  "workbench.panel.defaultLocation": "bottom",
+
+  "testing.followOnRun": true,
+  "testing.gutterEnabled": true,
+  "testing.openTesting": "openOnTestStart",
+
+  "java.test.editor.enableShortcuts": true
 }
