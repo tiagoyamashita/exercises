@@ -1,7 +1,7 @@
 package com.example.demo.web;
 
+import com.example.demo.MavenProjectLayout;
 import com.example.demo.exercises.DashboardNotesPayload;
-import com.example.demo.exercises.ExerciseHelpProperties;
 import com.example.demo.exercises.ExerciseNotesService;
 import com.example.demo.maven.DiscoveredTestClass;
 import com.example.demo.maven.MavenTestRunService;
@@ -10,6 +10,8 @@ import com.example.demo.maven.TestDiscoveryService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,17 +29,17 @@ public class HomeController {
   private final TestDiscoveryService testDiscoveryService;
   private final MavenTestRunService mavenTestRunService;
   private final ExerciseNotesService exerciseNotesService;
-  private final ExerciseHelpProperties exerciseHelp;
+  private final MavenProjectLayout mavenProjectLayout;
 
   public HomeController(
       TestDiscoveryService testDiscoveryService,
       MavenTestRunService mavenTestRunService,
       ExerciseNotesService exerciseNotesService,
-      ExerciseHelpProperties exerciseHelp) {
+      MavenProjectLayout mavenProjectLayout) {
     this.testDiscoveryService = testDiscoveryService;
     this.mavenTestRunService = mavenTestRunService;
     this.exerciseNotesService = exerciseNotesService;
-    this.exerciseHelp = exerciseHelp;
+    this.mavenProjectLayout = mavenProjectLayout;
   }
 
   @GetMapping("/")
@@ -59,13 +61,21 @@ public class HomeController {
     }
     model.addAttribute("discoveredTests", discoveredTests);
     model.addAttribute("testCategoryGroups", TestCategoryClassifier.groupByCategory(discoveredTests));
-    model.addAttribute("helpCloneUrl", exerciseHelp.cloneUrl());
-    model.addAttribute("helpReadmeUrl", exerciseHelp.readmeUrl());
-    model.addAttribute("offlineFetchHint", offlineFetchHint(exerciseHelp));
+    Path mavenRoot = mavenProjectLayout.resolveMavenProjectRoot().normalize().toAbsolutePath();
+    Path runDashboardHtml =
+        mavenRoot.resolve("src/main/resources/static/run-dashboard.html").normalize().toAbsolutePath();
+    model.addAttribute("localMavenModuleRoot", mavenRoot.toString());
+    model.addAttribute("localRunDashboardPath", runDashboardHtml.toString());
+    Path readmeAtRepoRoot =
+        mavenRoot.getParent() == null ? null : mavenRoot.getParent().resolve("README.md");
+    if (readmeAtRepoRoot != null && Files.isRegularFile(readmeAtRepoRoot)) {
+      model.addAttribute("localReadmePath", readmeAtRepoRoot.toAbsolutePath().toString());
+    }
+    model.addAttribute("offlineFetchHint", offlineFetchHint(runDashboardHtml));
     return "home";
   }
 
-  private static String offlineFetchHint(ExerciseHelpProperties help) {
+  private static String offlineFetchHint(Path localRunDashboardHtml) {
     StringBuilder sb = new StringBuilder();
     sb.append(
         " If this keeps happening, start the Spring Boot app from the java/ directory: ");
@@ -73,16 +83,9 @@ public class HomeController {
     sb.append(" (Windows from repo root: ");
     sb.append(".\\java\\mvnw.cmd spring-boot:run");
     sb.append(").");
-    if (!help.cloneUrl().isEmpty()) {
-      sb.append(" Clone the repo: ");
-      sb.append(help.cloneUrl());
-      sb.append(".");
-    }
-    if (!help.readmeUrl().isEmpty()) {
-      sb.append(" Docs: ");
-      sb.append(help.readmeUrl());
-      sb.append(".");
-    }
+    sb.append(" Offline checklist on this machine: ");
+    sb.append(localRunDashboardHtml);
+    sb.append(".");
     return sb.toString();
   }
 

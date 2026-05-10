@@ -329,26 +329,30 @@
   <body>
     <h1>Tests</h1>
     <details class="run-local-details hint">
-      <summary>Clone repo &amp; run this dashboard locally</summary>
+      <summary>Run this dashboard locally (paths on this machine)</summary>
+      <p style="margin: 0.5rem 0 0.35rem; font-size: 0.88rem;">
+        Resolved Maven module root (where <code>pom.xml</code> was found):
+      </p>
+      <pre th:text="${localMavenModuleRoot}">…</pre>
+      <p style="margin: 0.35rem 0 0.35rem; font-size: 0.88rem;">
+        Static checklist file (open in a browser via <code>file://</code> or your editor):
+      </p>
+      <pre th:text="${localRunDashboardPath}">…</pre>
+      <p style="margin: 0.35rem 0 0.35rem; font-size: 0.88rem;" th:if="${localReadmePath != null}">
+        Repository <code>README.md</code> (one level above the Java module, if present):
+      </p>
+      <pre th:if="${localReadmePath != null}" th:text="${localReadmePath}">…</pre>
       <p style="margin: 0.5rem 0 0.35rem; font-size: 0.88rem;">
         From the repository root, start Spring Boot (default URL <code>http://localhost:8080</code>):
       </p>
       <pre>cd java
 ./mvnw spring-boot:run</pre>
-      <p style="margin: 0.35rem 0; font-size: 0.88rem;">Windows (PowerShell), from repo root:</p>
+      <p style="margin: 0.35rem 0 0; font-size: 0.88rem;">Windows (PowerShell), from repo root:</p>
       <pre>cd java
 .\mvnw.cmd spring-boot:run</pre>
-      <p style="margin: 0.35rem 0 0; font-size: 0.88rem;" th:if="${helpCloneUrl != null && !helpCloneUrl.isEmpty()}">
-        <a th:href="${helpCloneUrl}">Clone URL</a>
-        <th:block th:if="${helpReadmeUrl != null && !helpReadmeUrl.isEmpty()}">
-          · <a th:href="${helpReadmeUrl}">README</a>
-        </th:block>
-      </p>
       <p style="margin: 0.35rem 0 0; font-size: 0.88rem;">
-        If nothing responds on localhost, clone the repo and use the checklist at
-        <a href="/run-dashboard.html"><code>/run-dashboard.html</code></a> after the app is up, or open
-        <code>java/src/main/resources/static/run-dashboard.html</code> from your clone in a browser (works offline).
-        See also <code>README.md</code> at the repo root.
+        When the app is running, the same checklist is served at
+        <a href="/run-dashboard.html"><code>/run-dashboard.html</code></a>.
       </p>
     </details>
 
@@ -358,12 +362,8 @@
       <p class="hint" style="margin: 0;">
         Fix Maven layout / paths, or run the app from the <code>java/</code> directory:
         <code>./mvnw spring-boot:run</code> (Windows: <code>.\mvnw.cmd spring-boot:run</code>).
-        <th:block th:if="${helpCloneUrl != null && !helpCloneUrl.isEmpty()}">
-          <a th:href="${helpCloneUrl}">Clone this repository</a>.
-        </th:block>
-        <th:block th:if="${helpReadmeUrl != null && !helpReadmeUrl.isEmpty()}">
-          <a th:href="${helpReadmeUrl}">README</a>.
-        </th:block>
+        Module root: <code th:text="${localMavenModuleRoot}">…</code>.
+        Checklist file: <code th:text="${localRunDashboardPath}">…</code>.
       </p>
     </div>
 
