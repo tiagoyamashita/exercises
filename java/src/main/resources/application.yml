@@ -32,7 +32,7 @@ management:
       show-details: when_authorized
 
 app:
-  maven:
+  project:
     # Optional: absolute path to the directory that contains pom.xml (otherwise auto-detected).
     module-dir: ""
   # Outbound GET targets from the test dashboard ("generate traffic" buttons). Override per environment.

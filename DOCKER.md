@@ -25,7 +25,7 @@ Works with **Podman** using `podman compose` (Compose v2) or legacy `podman-comp
 ### Compose layout
 
 - **`postgres`** — database on host port **5432** (named volume `exercises_pg_data`).
-- **`java`** — uses Spring **`postgres`** profile; connects to the `postgres` service (`DB_HOST=postgres`). The **Dockerfile** keeps `pom.xml`, `src`, `mvnw`, and `target/` (including **Surefire reports** from the image build) so the **test dashboard** works inside Compose, not only when running `./mvnw` on the host.
+- **`java`** — uses Spring **`postgres`** profile; connects to the `postgres` service (`DB_HOST=postgres`). The **Dockerfile** keeps `pom.xml`, `src`, `mvnw`, and `target/` (including **Surefire reports** from the image build when tests run at build time) so the **test dashboard** works inside Compose, not only when running `./mvnw` on the host. **Build time:** the default image build runs **`mvn package`** with **all tests**, which is slow but populates Surefire XML; dependencies are cached in a separate layer when only `src/` changes. For a **faster** image (no tests at build time): `docker compose build --build-arg SKIP_TESTS=true java` (then run tests from the UI or `mvnw` inside the container to refresh reports).
 - **`python`** / **`rust`** — listen on `0.0.0.0` inside the container (required for published ports). Both expose **`/metrics`** in Prometheus format for **`prometheus`** to scrape.
 - **`java`** — exposes **`/actuator/prometheus`** (Spring Boot Actuator + Micrometer) for **`prometheus`**.
 - **`prometheus`** — metrics TSDB and UI on **9090**; config in **`prometheus/prometheus.yml`** (scrapes **Java**, **Python**, and **Rust**). **Grafana** uses this datasource (provisioned).

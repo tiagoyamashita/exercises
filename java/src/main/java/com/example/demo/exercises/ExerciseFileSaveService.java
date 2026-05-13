@@ -1,6 +1,6 @@
 package com.example.demo.exercises;
 
-import com.example.demo.MavenProjectLayout;
+import com.example.demo.ProjectLayout;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -15,9 +15,9 @@ public class ExerciseFileSaveService {
   private static final Pattern ALLOWED_FQCN =
       Pattern.compile("^com\\.example\\.demo(\\.[\\w]+)+$");
 
-  private final MavenProjectLayout layout;
+  private final ProjectLayout layout;
 
-  public ExerciseFileSaveService(MavenProjectLayout layout) {
+  public ExerciseFileSaveService(ProjectLayout layout) {
     this.layout = layout;
   }
 
@@ -33,14 +33,14 @@ public class ExerciseFileSaveService {
     validateFqcn(writeFqcn);
     String relative =
         testSources
-            ? TestCurriculumService.relativeSrcPath(writeFqcn)
+            ? relativeTestJavaPath(writeFqcn)
             : relativeMainSrcPath(writeFqcn);
     return new WriteTarget(trimmed, writeFqcn, relative, minimalJavaStub(writeFqcn));
   }
 
   /**
-   * Writes Java source under the Maven module: {@code src/test/java} when the request refers to a
-   * test class (simple name ends with {@code Test}), otherwise {@code src/main/java}.
+   * Writes Java under the resolved module: {@code src/test/java} for test FQCNs ({@code *Test}),
+   * otherwise {@code src/main/java}.
    *
    * <p>For <strong>test</strong> classes, the file name is the test simple name with {@code
    * Response} appended (e.g. {@code GetCollectionRestTest} → {@code GetCollectionRestTestResponse.java})
@@ -50,7 +50,7 @@ public class ExerciseFileSaveService {
     WriteTarget writeTarget = resolveWriteTarget(fqcn);
     String relative = writeTarget.relativePath();
     boolean testSources = isTestSourceName(writeTarget.requestedFqcn());
-    Path root = layout.resolveMavenProjectRoot().normalize();
+    Path root = layout.resolveProjectRoot().normalize();
     Path filePath = root.resolve(relative).normalize();
     Path allowedRoot =
         root.resolve(testSources ? "src/test/java" : "src/main/java").normalize();
@@ -112,6 +112,17 @@ public class ExerciseFileSaveService {
     String simple = last < 0 ? fqcn : fqcn.substring(last + 1);
     String withSuffix = simple + "Response";
     return pkg.isEmpty() ? withSuffix : pkg + "." + withSuffix;
+  }
+
+  /** {@code com.foo.BarTest} → {@code src/test/java/com/foo/BarTest.java}. */
+  public static String relativeTestJavaPath(String fqcn) {
+    int last = fqcn.lastIndexOf('.');
+    String pkgPath = last < 0 ? "" : fqcn.substring(0, last).replace('.', '/');
+    String simple = last < 0 ? fqcn : fqcn.substring(last + 1);
+    if (pkgPath.isEmpty()) {
+      return "src/test/java/" + simple + ".java";
+    }
+    return "src/test/java/" + pkgPath + "/" + simple + ".java";
   }
 
   /** {@code com.foo.Bar} → {@code src/main/java/com/foo/Bar.java}. */

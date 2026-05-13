@@ -1,14 +1,21 @@
 # syntax=docker/dockerfile:1
-# Build runs tests so target/surefire-reports exists. Runtime image keeps a Maven workspace so the
-# dashboard can discover tests, show Surefire XML, and run "mvn test" from the UI (dev compose).
+# Build runs tests by default (set SKIP_TESTS=true for faster image builds).
+# Example: docker compose build --build-arg SKIP_TESTS=true java
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /build
+ARG SKIP_TESTS=false
 COPY pom.xml .
 COPY mvnw mvnw.cmd ./
 COPY .mvn .mvn
+RUN chmod +x mvnw \
+  && mvn -B -q dependency:go-offline
 COPY src ./src
 RUN chmod +x mvnw \
-  && mvn -B -q package
+  && if [ "$SKIP_TESTS" = "true" ]; then \
+       mvn -B -q package -DskipTests; \
+     else \
+       mvn -B -q package; \
+     fi
 
 FROM maven:3.9.9-eclipse-temurin-17
 WORKDIR /workspace

@@ -1,6 +1,6 @@
 package com.example.demo.web;
 
-import com.example.demo.MavenProjectLayout;
+import com.example.demo.ProjectLayout;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,15 +16,15 @@ public class TestSourceService {
   private static final Pattern SAFE_FQCN =
       Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_.$]*$");
 
-  private final MavenProjectLayout mavenProjectLayout;
+  private final ProjectLayout projectLayout;
 
-  public TestSourceService(MavenProjectLayout mavenProjectLayout) {
-    this.mavenProjectLayout = mavenProjectLayout;
+  public TestSourceService(ProjectLayout projectLayout) {
+    this.projectLayout = projectLayout;
   }
 
   /**
-   * Reads the outermost test class {@code .java} file for a Surefire {@code classname} (supports
-   * {@code Outer$Nested} by resolving {@code Outer.java}).
+   * Reads the outermost test class {@code .java} file for an FQCN (supports {@code Outer$Nested} by
+   * resolving {@code Outer.java}).
    */
   public Optional<TestSourcePayload> readTestClassSource(String className) {
     if (className == null || className.isBlank() || !SAFE_FQCN.matcher(className.strip()).matches()) {
@@ -37,7 +37,7 @@ public class TestSourceService {
       return Optional.empty();
     }
 
-    Path projectRoot = mavenProjectLayout.resolveMavenProjectRoot();
+    Path projectRoot = projectLayout.resolveProjectRoot();
     Path testJavaRoot = projectRoot.resolve("src/test/java").normalize();
     Path relative = Path.of(topLevel.replace('.', '/') + ".java");
     Path file = testJavaRoot.resolve(relative).normalize();
