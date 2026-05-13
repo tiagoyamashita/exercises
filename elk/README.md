@@ -25,9 +25,11 @@ Modern deployments often add **Beats** (for example **Filebeat**) in front of Lo
 
 ## Run locally (Podman or Docker)
 
-For a **single machine** (laptop or VM), use **Compose** with **Podman** or **Docker** — no Helm and no cluster required. Same `docker-compose.yml` file works with both runtimes (matches [../DOCKER.md](../DOCKER.md) for the rest of the repo).
+For a **single machine**, use **Compose** with **Podman** or **Docker** — no cluster required.
 
-From **`elk/`**:
+The **root** `docker-compose.yml` can start **Grafana** with the apps by default; **ELK** is behind Compose **`profile: elk`** (use **`podman compose --profile elk up --build`** to include Elasticsearch, Logstash, and Kibana). Use **either** the root file **or** the per-folder compose files — not both at once when the same ports are published (ports **9200**, **5044**, **5601**, **3000** would collide).
+
+For **ELK only**, from **`elk/`**:
 
 ```bash
 podman compose up -d

@@ -1,5 +1,7 @@
 # Podman: from repo root — podman compose up --build   (or: docker compose up --build)
-# Starts postgres + java + python + rust. ELK/Grafana live under elk/ and grafana/.
+# Default: postgres + java + python + rust + Grafana. ELK is OFF unless you pass --profile elk.
+#   podman compose --profile elk up --build
+# Do not also run elk/docker-compose.yml or grafana/docker-compose.yml on the same host (duplicate ports).
 services:
   postgres:
     image: docker.io/library/postgres:16
@@ -50,5 +52,78 @@ services:
       EXERCISES_WEB_PORT: "8082"
       EXERCISES_RUST_ROOT: /app
 
+  # ELK — lab defaults (security off). Disabled by default; see elk/README.md
+  elasticsearch:
+    profiles: [elk]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.5
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - exercises_es_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  logstash:
+    profiles: [elk]
+    image: docker.elastic.co/logstash/logstash:8.15.5
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      LS_JAVA_OPTS: "-Xms256m -Xmx256m"
+
+  kibana:
+    profiles: [elk]
+    image: docker.elastic.co/kibana/kibana:8.15.5
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./elk/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+
+  grafana:
+    image: docker.io/grafana/grafana-oss:11.5.2
+    init: true
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Listen on all interfaces inside the container (avoids “works in Docker, blank in Podman” cases).
+      GF_SERVER_HTTP_ADDR: "0.0.0.0"
+      # Match how you open the UI (localhost vs 127.0.0.1); wrong root_url breaks redirects/cookies.
+      GF_SERVER_ROOT_URL: http://127.0.0.1:3000/
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      # Allow embedding in <iframe> (parent page must be trusted; off by default in Grafana).
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - exercises_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # RW: file provisioning may touch the dashboards dir; RO overlays caused issues on some Podman setups.
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
 volumes:
   exercises_pg_data:
+  exercises_es_data:
+  exercises_grafana_data:

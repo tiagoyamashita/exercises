@@ -1,3 +1,40 @@
 # https://grafana.com/docs/grafana/latest/administration/provisioning/#data-sources
+# Files in this directory are loaded on startup. Edit and restart Grafana.
+
 apiVersion: 1
-datasources: []
+
+datasources:
+  # Always available — use for panels that accept "TestData" (Grafana playground style).
+  - name: TestData
+    type: testdata
+    uid: testdata
+    access: proxy
+    isDefault: true
+    editable: true
+
+  # --- Uncomment and adjust when you run a Prometheus server reachable from Grafana ---
+  # Same Docker/Podman network: use the Compose *service name* as hostname (e.g. prometheus:9090).
+  # - name: Prometheus
+  #   type: prometheus
+  #   uid: prometheus
+  #   access: proxy
+  #   url: http://prometheus:9090
+  #   isDefault: false
+  #   editable: true
+  #   jsonData:
+  #     httpMethod: POST
+
+  # --- Uncomment only when ELK is up (`podman compose --profile elk up`) on the *same* compose project ---
+  # - name: Elasticsearch
+  #   type: elasticsearch
+  #   uid: elasticsearch
+  #   access: proxy
+  #   url: http://elasticsearch:9200
+  #   database: "[logstash-]YYYY.MM.DD"
+  #   jsonData:
+  #     timeField: "@timestamp"
+  #     esVersion: "8.0.0"
+  #     logMessageField: message
+  #     logLevelField: fields.level
+  #   isDefault: false
+  #   editable: true

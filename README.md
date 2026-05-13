@@ -44,7 +44,7 @@ If you use Docker Engine instead of Podman:
 docker compose up --build
 ```
 
-That starts Postgres plus Java, Python, and Rust together; you can also bring up only the services you need (see [DOCKER.md](DOCKER.md)). Images and ports are summarized there.
+That starts **Postgres**, **Java**, **Python**, **Rust**, and **Grafana** by default. **ELK** is off unless you add **`--profile elk`** (see [DOCKER.md](DOCKER.md)). You can also bring up only the services you need. Images and ports are summarized there.
 
 ### Windows: `helm` or `docker` is not recognized
 
@@ -59,6 +59,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';'
 
 3. **Helm:** install or repair with `winget install --id Helm.Helm -e --accept-source-agreements --accept-package-agreements` ([kubernetes-orchestration README](kubernetes-orchestration/README.md) has the same note).
 4. **Docker:** install [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) **or** skip Docker and use **Podman** only (`podman compose …` as above). This machine already had **Podman** available when the environment `PATH` was refreshed; if `Get-Command podman` works, prefer **`podman compose`** until Docker is installed.
+5. **Browser shows connection refused / timeout** while `podman compose ps` shows **Up** — see [DOCKER.md — Browser cannot reach containers](DOCKER.md#browser-cannot-reach-containers-podman-on-windows) (try **`http://127.0.0.1:`**… instead of **`localhost`**, start **`podman machine`**, check ports).
 
 **Local testing vs production:** In practice, **`docker compose`** is for **running and testing on your own machine**—quick loops, integration checks, and the same container images you might build in CI. When you deploy to **production or shared environments**, you typically use **Helm** on **Kubernetes** (this repo’s chart under **`kubernetes-orchestration/`**) so you get replicas, rolling updates, cluster networking, and environment-specific values. **Terraform** is optional and addresses **infrastructure**, not the app chart itself: it often provisions **VPCs, managed clusters (EKS, AKS, …), IAM, and networking**. Many teams use Terraform (or similar) to **create** the cluster and supporting cloud resources, then **Helm** to **install this stack inside** that cluster—the two work **together**; Helm does not replace Terraform and Terraform does not deploy Helm charts unless you wire that explicitly (for example with a `helm_release` resource).
 
@@ -109,5 +110,7 @@ Use **Compose** when you want the fastest loop on a single computer. Use **Helm*
 **Grafana** (optional dashboards; Compose under **`grafana/`**): [grafana/README.md](grafana/README.md).
 
 **ELK** (optional Elasticsearch + Logstash + Kibana; **Podman** or **Docker** Compose under **`elk/`**; cluster path uses Helm + **`kubectl`**): [elk/README.md](elk/README.md).
+
+**Reach UI** (optional Vite page: probe Java / Python / Rust URLs with defaults and `localStorage`): [reach-ui/README.md](reach-ui/README.md).
 
 On Windows, if **`link.exe` not found** and you do not want Visual Studio’s MSVC build tools, use the **GNU / MinGW** path: [rust/README.md — GNU target](rust/README.md#windows-gnu-target-mingw-instead-of-msvc) or run the project under **WSL**: [rust/README.md — WSL](rust/README.md#windows-wsl-linux-in-windows).
