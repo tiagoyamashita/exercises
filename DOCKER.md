@@ -26,17 +26,31 @@ Works with **Podman** using `podman compose` (Compose v2) or legacy `podman-comp
 
 - **`postgres`** — database on host port **5432** (named volume `exercises_pg_data`).
 - **`java`** — uses Spring **`postgres`** profile; connects to the `postgres` service (`DB_HOST=postgres`). The **Dockerfile** keeps `pom.xml`, `src`, `mvnw`, and `target/` (including **Surefire reports** from the image build) so the **test dashboard** works inside Compose, not only when running `./mvnw` on the host.
-- **`python`** / **`rust`** — listen on `0.0.0.0` inside the container (required for published ports).
-- **`grafana`** — dashboards on **3000**; provisioning under **`grafana/`**. Started by default with the apps. **`GF_SECURITY_ALLOW_EMBEDDING=true`** so it can load inside an **`<iframe>`** (dev-oriented; tighten for production).
-- **`elasticsearch`** / **`logstash`** / **`kibana`** — ELK (lab defaults; security off). **Not** started by default; enable with **`--profile elk`** (see below). Config under **`elk/`**.
+- **`python`** / **`rust`** — listen on `0.0.0.0` inside the container (required for published ports). Both expose **`/metrics`** in Prometheus format for **`prometheus`** to scrape.
+- **`java`** — exposes **`/actuator/prometheus`** (Spring Boot Actuator + Micrometer) for **`prometheus`**.
+- **`prometheus`** — metrics TSDB and UI on **9090**; config in **`prometheus/prometheus.yml`** (scrapes **Java**, **Python**, and **Rust**). **Grafana** uses this datasource (provisioned).
+- **`grafana`** — dashboards on **3000**; provisioning under **`grafana/`**. A starter dashboard **`Exercises — Java, Python & Rust`** is loaded from **`grafana/dashboards/exercises-java-python-rust.json`** (folder **Exercises**). **`GF_SECURITY_ALLOW_EMBEDDING=true`** so it can load inside an **`<iframe>`** (dev-oriented; tighten for production).
+- **`elasticsearch`** / **`logstash`** / **`kibana`** — ELK (lab defaults; security off). Started with the root compose file; config under **`elk/`**. **Heavy on RAM** — to skip ELK only: `podman compose up --build postgres java python rust grafana prometheus`.
+
+**Metrics vs ELK:** **Prometheus + Grafana** handle **metrics** (e.g. Python/Rust **`/metrics`**, Java **`/actuator/prometheus`**). **ELK** handles **logs** (Filebeat → Logstash → Elasticsearch → Kibana). Prometheus does not replace ELK; wire logs separately if you want both.
 
 Use **`elk/docker-compose.yml`** or **`grafana/docker-compose.yml`** only if you want those stacks **without** the app services — do **not** run them at the same time as the root file when the same ports are published (duplicate **3000** / ELK ports).
 
-**Enable ELK with root Compose:**
+### Inter-container network (`exercises`)
 
-```bash
-podman compose --profile elk up --build
-```
+All root-compose services attach to a **named bridge network** `exercises`. From **inside** any of those containers, other services resolve by **Compose service name** and **internal port** (not `127.0.0.1`):
+
+- Postgres: `postgres:5432`
+- Java: `http://java:8080`
+- Python: `http://python:5000`
+- Rust: `http://rust:8082`
+- Grafana: `http://grafana:3000`
+- Prometheus: `http://prometheus:9090`
+- Elasticsearch: `http://elasticsearch:9200`, Kibana: `http://kibana:5601`, Logstash: `logstash:5044`
+
+Example: `podman compose exec grafana wget -qO- http://java:8080/ | head` (or `curl` if present).
+
+**Browser vs container:** Your **browser on the host** uses **published** ports on `127.0.0.1` (see URLs below). If something “can’t reach” another service from **JavaScript in the browser** (e.g. Grafana front end calling `http://java:8080`), that is **not** fixed by Compose networking — the browser is not on `exercises`; you need **CORS** on the target app or a **server-side** proxy.
 
 URLs (use **`127.0.0.1`** in the browser on Windows if **`localhost`** hangs or refuses — see troubleshooting below):
 
@@ -44,7 +58,8 @@ URLs (use **`127.0.0.1`** in the browser on Windows if **`localhost`** hangs or 
 - Python: `http://127.0.0.1:5000/`
 - Rust: `http://127.0.0.1:8082/`
 - Grafana: `http://127.0.0.1:3000/` (default login `admin` / `admin`; `GF_SERVER_ROOT_URL` matches this — use the same host you type in the address bar)
-- With **`--profile elk`**: Elasticsearch `http://127.0.0.1:9200/`, Kibana `http://127.0.0.1:5601/`, Logstash Beats **5044**
+- Prometheus UI: `http://127.0.0.1:9090/`
+- Elasticsearch: `http://127.0.0.1:9200/`, Kibana: `http://127.0.0.1:5601/`, Logstash Beats **5044**
 
 ### Browser cannot reach containers (Podman on Windows)
 

@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from flask import Flask, Response, redirect, render_template, request, session, url_for
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 
 from exercises.web.junit_report import (
     existing_report_hints,
@@ -13,6 +14,13 @@ from exercises.web.junit_report import (
 )
 from exercises.web.pytest_runner import run_pytest
 from exercises.web.source_service import read_test_source
+
+# Module-level so repeated `create_app()` (e.g. pytest) does not re-register on the default registry.
+_HTTP_REQUESTS = Counter(
+    "exercises_http_requests_total",
+    "HTTP requests handled by the exercises Flask app",
+    ["method", "endpoint"],
+)
 
 
 def resolve_project_root() -> Path:
@@ -51,7 +59,8 @@ def create_app() -> Flask:
     app.config["PROJECT_ROOT"] = resolve_project_root()
 
     @app.after_request
-    def no_store_for_home(response):
+    def after_request_hooks(response):
+        _HTTP_REQUESTS.labels(request.method, request.endpoint or "unknown").inc()
         if request.endpoint == "home":
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
             response.headers["Pragma"] = "no-cache"
@@ -123,5 +132,10 @@ def create_app() -> Flask:
             return jsonify(error="not found"), 404
         path, content = payload
         return jsonify(path=path, content=content)
+
+    @app.get("/metrics")
+    def metrics() -> Response:
+        """Prometheus scrape endpoint (see root `prometheus/prometheus.yml`)."""
+        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     return app

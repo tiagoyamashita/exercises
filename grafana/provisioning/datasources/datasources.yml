@@ -4,27 +4,24 @@
 apiVersion: 1
 
 datasources:
-  # Always available — use for panels that accept "TestData" (Grafana playground style).
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+
   - name: TestData
     type: testdata
     uid: testdata
     access: proxy
-    isDefault: true
+    isDefault: false
     editable: true
 
-  # --- Uncomment and adjust when you run a Prometheus server reachable from Grafana ---
-  # Same Docker/Podman network: use the Compose *service name* as hostname (e.g. prometheus:9090).
-  # - name: Prometheus
-  #   type: prometheus
-  #   uid: prometheus
-  #   access: proxy
-  #   url: http://prometheus:9090
-  #   isDefault: false
-  #   editable: true
-  #   jsonData:
-  #     httpMethod: POST
-
-  # --- Uncomment only when ELK is up (`podman compose --profile elk up`) on the *same* compose project ---
+  # --- Uncomment when ELK is running from the *same* root compose project (or elk/ compose) ---
   # - name: Elasticsearch
   #   type: elasticsearch
   #   uid: elasticsearch

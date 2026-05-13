@@ -22,10 +22,24 @@ spring:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
 app:
   maven:
     # Optional: absolute path to the directory that contains pom.xml (otherwise auto-detected).
     module-dir: ""
+  # Outbound GET targets from the test dashboard ("generate traffic" buttons). Override per environment.
+  stack:
+    rust-base-url: http://127.0.0.1:8082
+    python-base-url: http://127.0.0.1:5000
+    prometheus-base-url: http://127.0.0.1:9090
 
 ---
 # Optional: spring.profiles.active=postgres

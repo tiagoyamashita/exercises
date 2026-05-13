@@ -67,7 +67,7 @@ Adjust exposure (ClusterIP vs LoadBalancer vs Ingress) with the chart’s values
 
 ## Optional: ELK stack (Elasticsearch, Logstash, Kibana)
 
-**On one machine (no cluster):** run ELK with **Podman** or **Docker** from [`../elk/`](../elk/) — `podman compose up -d` or `docker compose up -d`. That is the usual path for local log experiments.
+**On one machine (no cluster):** the **root** [`../docker-compose.yml`](../docker-compose.yml) starts ELK with the apps (`podman compose up --build`). Alternatively run ELK alone from [`../elk/`](../elk/) — `podman compose up -d` or `docker compose up -d`.
 
 **On Kubernetes:** install the **`elk-stack`** Helm chart (same three components as the Compose stack). **Helm** applies the chart; **`kubectl`** is what you use afterward (`port-forward`, `get pods`, `logs`, delete namespace, etc.). The chart is **separate** from `exercises-stack`—use its own namespace (for example **`elk`**). Defaults match the local **`elk/docker-compose.yml`** idea: single-node Elasticsearch, **security disabled** (lab only), Logstash **Beats** input on **5044**, Kibana on **5601**.
 

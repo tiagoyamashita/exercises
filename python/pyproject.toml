@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "flask>=3.0",
+  "prometheus-client>=0.21",
 ]
 
 [project.optional-dependencies]

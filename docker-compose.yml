@@ -1,10 +1,14 @@
 # Podman: from repo root — podman compose up --build   (or: docker compose up --build)
-# Default: postgres + java + python + rust + Grafana. ELK is OFF unless you pass --profile elk.
-#   podman compose --profile elk up --build
+# Starts postgres + java + python + rust + Grafana + ELK + Prometheus (scrapes Java /actuator/prometheus + Python/Rust /metrics; Grafana loads exercises dashboard JSON).
+# To skip ELK only (lighter): podman compose up --build postgres java python rust grafana prometheus
 # Do not also run elk/docker-compose.yml or grafana/docker-compose.yml on the same host (duplicate ports).
+#
+# All services share network "exercises" — reach each other by DNS name, e.g. http://postgres:5432,
+# http://java:8080, http://prometheus:9090, http://elasticsearch:9200 (from inside any container on this project).
 services:
   postgres:
     image: docker.io/library/postgres:16
+    networks: [exercises]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -18,6 +22,7 @@ services:
     build:
       context: ./java
       dockerfile: Dockerfile
+    networks: [exercises]
     ports:
       - "8080:8080"
     environment:
@@ -27,6 +32,9 @@ services:
       DB_NAME: demo
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
+      APP_STACK_RUST_BASE_URL: http://rust:8082
+      APP_STACK_PYTHON_BASE_URL: http://python:5000
+      APP_STACK_PROMETHEUS_BASE_URL: http://prometheus:9090
     depends_on:
       - postgres
 
@@ -34,6 +42,7 @@ services:
     build:
       context: ./python
       dockerfile: Dockerfile
+    networks: [exercises]
     ports:
       - "5000:5000"
     environment:
@@ -45,17 +54,21 @@ services:
     build:
       context: ./rust
       dockerfile: Dockerfile
+    networks: [exercises]
     ports:
       - "8082:8082"
     environment:
       EXERCISES_WEB_HOST: "0.0.0.0"
       EXERCISES_WEB_PORT: "8082"
       EXERCISES_RUST_ROOT: /app
+      EXERCISES_JAVA_BASE_URL: http://java:8080
+    depends_on:
+      - java
 
-  # ELK — lab defaults (security off). Disabled by default; see elk/README.md
+  # ELK — lab defaults (security off). See elk/README.md
   elasticsearch:
-    profiles: [elk]
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.5
+    networks: [exercises]
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -72,8 +85,8 @@ services:
         hard: -1
 
   logstash:
-    profiles: [elk]
     image: docker.elastic.co/logstash/logstash:8.15.5
+    networks: [exercises]
     depends_on:
       - elasticsearch
     ports:
@@ -84,8 +97,8 @@ services:
       LS_JAVA_OPTS: "-Xms256m -Xmx256m"
 
   kibana:
-    profiles: [elk]
     image: docker.elastic.co/kibana/kibana:8.15.5
+    networks: [exercises]
     depends_on:
       - elasticsearch
     ports:
@@ -95,7 +108,10 @@ services:
 
   grafana:
     image: docker.io/grafana/grafana-oss:11.5.2
+    networks: [exercises]
     init: true
+    depends_on:
+      - prometheus
     ports:
       - "3000:3000"
     environment:
@@ -122,6 +138,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 120s
+
+  prometheus:
+    image: docker.io/prom/prometheus:v2.55.1
+    networks: [exercises]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    depends_on:
+      - java
+      - python
+      - rust
+
+networks:
+  exercises:
+    driver: bridge
 
 volumes:
   exercises_pg_data:

@@ -324,10 +324,38 @@
         color: var(--muted);
         line-height: 1.4;
       }
+      .stack-ping-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        margin: 0 0 1rem;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(128, 128, 128, 0.06);
+      }
+      .stack-ping-label {
+        font-size: 0.88rem;
+        margin-right: 0.15rem;
+      }
+      .stack-ping-status {
+        font-size: 0.8rem;
+        color: var(--muted);
+        flex: 1 1 10rem;
+        min-width: 0;
+      }
     </style>
   </head>
   <body>
     <h1>Tests</h1>
+    <div class="stack-ping-bar hint" id="stack-ping-bar">
+      <span class="stack-ping-label">Generate traffic (server-side empty <code>GET</code> to Rust / Python / Prometheus):</span>
+      <button type="button" class="btn stack-ping-btn" data-target="rust">GET Rust</button>
+      <button type="button" class="btn stack-ping-btn" data-target="python">GET Python</button>
+      <button type="button" class="btn stack-ping-btn" data-target="prometheus">GET Prometheus</button>
+      <span id="stack-ping-status" class="stack-ping-status" role="status" aria-live="polite"></span>
+    </div>
     <details class="run-local-details hint">
       <summary>Run this dashboard locally (paths on this machine)</summary>
       <p style="margin: 0.5rem 0 0.35rem; font-size: 0.88rem;">
@@ -761,6 +789,50 @@
           var sn = ex.getAttribute('data-simple-name');
           if (!fqcn) return;
           openExerciseModal(fqcn, sn || '');
+        });
+      })();
+      /*]]>*/
+    </script>
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      (function () {
+        if (!window.fetch) return;
+        var bar = document.getElementById('stack-ping-bar');
+        var statusEl = document.getElementById('stack-ping-status');
+        if (!bar || !statusEl) return;
+        var rustUrl = /*[[@{/dashboard/stack-ping/rust}]]*/ '/dashboard/stack-ping/rust';
+        var pythonUrl = /*[[@{/dashboard/stack-ping/python}]]*/ '/dashboard/stack-ping/python';
+        var promUrl = /*[[@{/dashboard/stack-ping/prometheus}]]*/ '/dashboard/stack-ping/prometheus';
+        var routes = { rust: rustUrl, python: pythonUrl, prometheus: promUrl };
+        bar.addEventListener('click', function (ev) {
+          var btn = ev.target.closest ? ev.target.closest('.stack-ping-btn') : null;
+          if (!btn) return;
+          var target = btn.getAttribute('data-target');
+          if (!target || !routes[target]) return;
+          console.log('[dashboard] stack ping button click: ' + target);
+          statusEl.textContent = 'Requesting ' + target + '…';
+          fetch(routes[target], { method: 'GET', credentials: 'same-origin' })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+              }, function () {
+                return { ok: res.ok, data: {} };
+              });
+            })
+            .then(function (r) {
+              var d = r.data || {};
+              var u = d.url != null ? String(d.url) : '';
+              if (r.ok && d.ok === true) {
+                statusEl.textContent =
+                  target + ': OK (HTTP ' + (d.status != null ? d.status : '?') + ') → ' + u;
+                return;
+              }
+              var err = d.error != null ? String(d.error) : !r.ok ? 'Bad response' : 'Outbound GET failed';
+              statusEl.textContent = target + ': ' + err + (u ? ' → ' + u : '');
+            })
+            .catch(function (err) {
+              statusEl.textContent = target + ': ' + String(err.message || err);
+            });
         });
       })();
       /*]]>*/

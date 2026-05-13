@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="dark light"/>
+    <title>Exercises — Rust landing</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #121212;
+        --text: #e8e8ea;
+        --muted: #a3a3a8;
+        --border: #3f3f46;
+        --accent: #f97316;
+        --code-bg: #27272a;
+        --code-text: #e4e4e7;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          color-scheme: light;
+          --bg: #fafafa;
+          --text: #1a1a1a;
+          --muted: #555;
+          --border: #ccc;
+          --accent: #c2410c;
+          --code-bg: #eee;
+          --code-text: #222;
+        }
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .card {
+        max-width: 32rem;
+        width: 100%;
+        padding: 1.75rem 1.5rem;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(128, 128, 128, 0.06);
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 650;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        line-height: 1.5;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      code {
+        font-family: ui-monospace, "Cascadia Code", monospace;
+        font-size: 0.88em;
+        padding: 0.12rem 0.35rem;
+        border-radius: 4px;
+        background: var(--code-bg);
+        color: var(--code-text);
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0.55rem 1.1rem;
+        border-radius: 8px;
+        border: 1px solid var(--accent);
+        background: linear-gradient(180deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.08));
+        color: var(--text);
+      }
+      button:hover { filter: brightness(1.08); }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      pre#out {
+        margin: 1rem 0 0;
+        padding: 0.75rem 1rem;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        border-radius: 8px;
+        background: var(--code-bg);
+        color: var(--code-text);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border: 1px solid var(--border);
+        min-height: 4rem;
+      }
+      nav { margin-top: 1.25rem; font-size: 0.9rem; }
+      nav a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Rust exercises dashboard</h1>
+      <p>
+        This Axum app proxies a <code>GET</code> to Spring Boot at
+        <code>EXERCISES_JAVA_BASE_URL</code> (default <code>http://127.0.0.1:8080</code>) →
+        <code>/api/hello-from-rust</code>.
+      </p>
+      <button type="button" id="ping-java">Ping Java</button>
+      <pre id="out" aria-live="polite">(click the button)</pre>
+      <nav><a href="/">← Back to nextest results</a></nav>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('ping-java');
+        var out = document.getElementById('out');
+        if (!btn || !out) return;
+        btn.addEventListener('click', function () {
+          console.log('[landing] Ping Java clicked');
+          btn.disabled = true;
+          out.textContent = 'Requesting…';
+          fetch('/welcome/ping-java', { method: 'GET', credentials: 'same-origin' })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function (r) {
+              out.textContent = JSON.stringify(r.data, null, 2);
+            })
+            .catch(function (e) {
+              out.textContent = String(e && e.message ? e.message : e);
+            })
+            .finally(function () {
+              btn.disabled = false;
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

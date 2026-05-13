@@ -44,7 +44,7 @@ If you use Docker Engine instead of Podman:
 docker compose up --build
 ```
 
-That starts **Postgres**, **Java**, **Python**, **Rust**, and **Grafana** by default. **ELK** is off unless you add **`--profile elk`** (see [DOCKER.md](DOCKER.md)). You can also bring up only the services you need. Images and ports are summarized there.
+That starts **Postgres**, **Java**, **Python**, **Rust**, **Grafana**, and **ELK** (Elasticsearch, Logstash, Kibana) together. To skip ELK only (save RAM), see [DOCKER.md](DOCKER.md). You can also bring up a subset of services. Images and ports are summarized there.
 
 ### Windows: `helm` or `docker` is not recognized
 

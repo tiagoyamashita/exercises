@@ -1,0 +1,20 @@
+# Prometheus scrape config for the exercises Compose stack (service DNS on network `exercises`).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: exercises-java
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["java:8080"]
+
+  - job_name: exercises-python
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["python:5000"]
+
+  - job_name: exercises-rust
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["rust:8082"]

@@ -168,7 +168,7 @@ From this directory (`rust/`):
 cargo run --bin exercises-web
 ```
 
-Open [http://127.0.0.1:8082](http://127.0.0.1:8082) (Python uses 5000; this binary defaults to **8082**).
+Open [http://127.0.0.1:8082](http://127.0.0.1:8082) (Python uses 5000; this binary defaults to **8082**). **`GET /metrics`** serves Prometheus text format (`prometheus` crate); the root **`docker-compose.yml`** **`prometheus`** service scrapes it alongside Python.
 
 Optional:
 

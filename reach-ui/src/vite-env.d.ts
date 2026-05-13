@@ -6,4 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_EXERCISES_RUST_EMBED_URL?: string;
   /** Legacy: used as Java URL when `VITE_EXERCISES_JAVA_EMBED_URL` is unset */
   readonly VITE_EXERCISES_EMBED_URL?: string;
+  readonly VITE_GRAFANA_EMBED_URL?: string;
+  readonly VITE_PROMETHEUS_EMBED_URL?: string;
+  readonly VITE_ELASTICSEARCH_EMBED_URL?: string;
+  readonly VITE_KIBANA_EMBED_URL?: string;
 }
