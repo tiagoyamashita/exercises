@@ -81,14 +81,88 @@
       }
       .stack-ping-label { font-size: 0.88rem; margin-right: 0.15rem; }
       .stack-ping-status { font-size: 0.8rem; color: var(--muted); flex: 1 1 10rem; min-width: 0; }
+      h2.section { font-size: 1.05rem; font-weight: 650; margin: 0 0 0.5rem; }
+      .rust-item-panel {
+        margin: 0 0 1.25rem;
+        padding: 0.85rem 1rem;
+        border: 2px solid var(--accent);
+        border-radius: 10px;
+        background: rgba(74, 222, 128, 0.08);
+      }
+      .rust-item-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin: 0;
+      }
+      .rust-item-form input[type="text"] {
+        flex: 1 1 14rem;
+        min-width: 10rem;
+        padding: 0.45rem 0.55rem;
+        font: inherit;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .flash-ok { color: var(--accent); font-size: 0.9rem; margin: 0 0 0.5rem; font-weight: 600; }
+      .flash-err { color: #f87171; font-size: 0.9rem; margin: 0 0 0.5rem; font-weight: 600; }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .rust-item-result {
+        margin: 0.65rem 0 0;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--code-bg);
+        color: var(--code-text);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        min-height: 2.5rem;
+      }
+      .rust-item-result:empty::before {
+        content: "Response from Rust will appear here.";
+        color: var(--muted);
+        font-style: italic;
+      }
     </style>
   </head>
   <body>
     <h1>Spring Boot demo</h1>
+
+    <section class="rust-item-panel" id="rust-item-panel" aria-labelledby="rust-item-heading">
+      <h2 class="section" id="rust-item-heading">Add item via Rust → PostgreSQL</h2>
+      <p class="hint" style="margin: 0 0 0.5rem;">Java sends <code>POST</code> to Rust; Rust inserts into the shared <code>items</code> table.</p>
+      <div class="rust-item-form" id="rust-item-form">
+        <label class="visually-hidden" for="rust-item-name">Item name</label>
+        <input
+            type="text"
+            id="rust-item-name"
+            name="name"
+            placeholder="Item name"
+            autocomplete="off"/>
+        <button type="button" class="btn primary" id="rust-item-add">Add via Rust</button>
+      </div>
+      <pre id="rust-item-result" class="rust-item-result" aria-live="polite"></pre>
+    </section>
+
     <p class="hint">
       Run JUnit tests on the host with <code>./mvnw test</code> from the <code>java/</code> module.
       Exercise helpers: <code>GET /dashboard/test-template</code>, <code>POST /dashboard/exercise-file</code>,
-      <code>GET /tests/source</code>. REST examples: <code>/api/items</code>.
+      <code>GET /tests/source</code>. REST examples: <code>GET /api/items</code>.
     </p>
 
     <div class="stack-ping-bar hint" id="stack-ping-bar">
@@ -168,6 +242,80 @@
             });
         });
       })();
+
+      (function () {
+        if (!window.fetch) return;
+        var addBtn = document.getElementById('rust-item-add');
+        var nameInput = document.getElementById('rust-item-name');
+        var resultEl = document.getElementById('rust-item-result');
+        if (!addBtn || !nameInput || !resultEl) return;
+        var addUrl = /*[[@{/dashboard/items/add-via-rust}]]*/ '/dashboard/items/add-via-rust';
+
+        function showResult(text) {
+          resultEl.textContent = text;
+        }
+
+        addBtn.addEventListener('click', function () {
+          var name = (nameInput.value || '').trim();
+          if (!name) {
+            showResult('Enter an item name.');
+            return;
+          }
+          showResult('Calling Rust…');
+          var url = addUrl + '?name=' + encodeURIComponent(name);
+          fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' }
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { httpOk: res.ok, data: data };
+              }, function () {
+                return { httpOk: res.ok, data: { error: 'Response was not JSON' } };
+              });
+            })
+            .then(function (r) {
+              var lines = [];
+              lines.push('Java relay HTTP ' + (r.httpOk ? 'OK' : 'error'));
+              var d = r.data || {};
+              if (d.rustUrl) lines.push('Rust URL: ' + d.rustUrl);
+              if (d.status != null) lines.push('Rust HTTP status: ' + d.status);
+              if (d.rust) {
+                lines.push('');
+                lines.push('Rust response:');
+                lines.push(JSON.stringify(d.rust, null, 2));
+              } else if (d.body) {
+                lines.push('');
+                lines.push('Rust body:');
+                try {
+                  lines.push(JSON.stringify(JSON.parse(String(d.body)), null, 2));
+                } catch (e) {
+                  lines.push(String(d.body));
+                }
+              }
+              if (d.error) {
+                lines.push('');
+                lines.push('Error: ' + d.error);
+              }
+              if (r.httpOk && d.ok === true) {
+                nameInput.value = '';
+              }
+              showResult(lines.join('\n'));
+            })
+            .catch(function (err) {
+              showResult('Request failed: ' + String(err.message || err));
+            });
+        });
+
+        nameInput.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            addBtn.click();
+          }
+        });
+      })();
+
       /*]]>*/
     </script>
   </body>

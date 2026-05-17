@@ -1,6 +1,7 @@
 # Podman: from repo root — podman compose up --build   (or: docker compose up --build)
-# Starts postgres + java + python + rust + Grafana + ELK + Prometheus (scrapes Java /actuator/prometheus + Python/Rust /metrics; Grafana loads exercises dashboard JSON).
-# To skip ELK only (lighter): podman compose up --build postgres java python rust grafana prometheus
+# Starts postgres + java + python + rust + reach-ui + Grafana + ELK + Prometheus (scrapes Java /actuator/prometheus + Python/Rust /metrics; Grafana loads exercises dashboard JSON).
+# Reach UI (stack GET probes from the browser): http://127.0.0.1:5173/
+# To skip ELK only (lighter): podman compose up --build postgres java python rust reach-ui grafana prometheus
 # Do not also run elk/docker-compose.yml or grafana/docker-compose.yml on the same host (duplicate ports).
 #
 # All services share network "exercises" — reach each other by DNS name, e.g. http://postgres:5432,
@@ -32,6 +33,7 @@ services:
       DB_NAME: demo
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
+
       # Server-side stack ping from Java: use Compose DNS names (not localhost — that is the Java container).
       APP_STACK_RUST_BASE_URL: http://rust:8082
       APP_STACK_PYTHON_BASE_URL: http://python:5000
@@ -63,6 +65,14 @@ services:
       EXERCISES_WEB_PORT: "8082"
       EXERCISES_RUST_ROOT: /app
       EXERCISES_JAVA_BASE_URL: http://java:8080
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: demo
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    depends_on:
+      - postgres
+      - java
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8082/health"]
       interval: 15s
@@ -70,7 +80,27 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
-    # No depends_on: java — Rust UI and /health work without Spring; start Java when you need stack ping.
+
+  # Static Vite build served by nginx; probes use host-published ports (browser cannot use Compose DNS names).
+  reach-ui:
+    build:
+      context: ./reach-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_EXERCISES_JAVA_EMBED_URL: http://127.0.0.1:8080/
+        VITE_EXERCISES_PYTHON_EMBED_URL: http://127.0.0.1:5000/
+        VITE_EXERCISES_RUST_EMBED_URL: http://127.0.0.1:8082/
+        VITE_GRAFANA_EMBED_URL: http://127.0.0.1:3000/
+        VITE_PROMETHEUS_EMBED_URL: http://127.0.0.1:9090/
+        VITE_ELASTICSEARCH_EMBED_URL: http://127.0.0.1:9200/
+        VITE_KIBANA_EMBED_URL: http://127.0.0.1:5601/
+    networks: [exercises]
+    ports:
+      - "5173:5173"
+    depends_on:
+      - java
+      - python
+      - rust
 
   # ELK — lab defaults (security off). See elk/README.md
   elasticsearch:

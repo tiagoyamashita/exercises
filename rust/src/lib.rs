@@ -1,6 +1,8 @@
 //! Library crate: Axum app + JUnit parsing for the local test dashboard.
 
 pub mod app;
+pub mod db;
+pub mod items;
 pub mod flash;
 pub mod junit;
 pub mod runner;

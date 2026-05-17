@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build runs tests by default (set SKIP_TESTS=true for faster image builds).
 # Example: docker compose build --build-arg SKIP_TESTS=true java
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM maven:3.9.9-eclipse-temurin-25 AS build
 WORKDIR /build
 ARG SKIP_TESTS=false
 COPY pom.xml .
@@ -17,7 +17,7 @@ RUN chmod +x mvnw \
        mvn -B -q package; \
      fi
 
-FROM maven:3.9.9-eclipse-temurin-17
+FROM maven:3.9.9-eclipse-temurin-25
 WORKDIR /workspace
 RUN mkdir -p /workspace/logs
 COPY --from=build /build/pom.xml /build/mvnw /build/mvnw.cmd ./

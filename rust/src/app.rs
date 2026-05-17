@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
+use sqlx::PgPool;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use tera::{Context, Tera};
@@ -36,16 +37,18 @@ pub struct AppState {
     pub tera: Arc<Tera>,
     /// Base URL for the Spring Boot app (no trailing slash). Compose: `http://java:8080`.
     pub java_base_url: String,
+    pub pg_pool: Option<PgPool>,
 }
 
 impl AppState {
-    pub fn new(project_root: PathBuf, tera: Tera) -> Self {
+    pub fn new(project_root: PathBuf, tera: Tera, pg_pool: Option<PgPool>) -> Self {
         let java_base_url = std::env::var("EXERCISES_JAVA_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
         Self {
             project_root,
             tera: Arc::new(tera),
             java_base_url,
+            pg_pool,
         }
     }
 }
@@ -58,6 +61,7 @@ fn route_endpoint_label(path: &str) -> &'static str {
         "/welcome/ping-java" => "welcome_ping_java",
         "/tests/run" => "run_tests_post",
         "/tests/source" => "test_source",
+        "/api/items" => "create_item",
         "/metrics" => "metrics",
         _ => "other",
     }
@@ -159,6 +163,23 @@ pub fn load_tera(project_root: &Path) -> std::io::Result<Tera> {
     Ok(tera)
 }
 
+async fn create_item(
+    State(state): State<AppState>,
+    Query(query): Query<crate::items::CreateItemQuery>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pg_pool.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({
+                "ok": false,
+                "error": "Postgres not configured (set DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD)"
+            })),
+        )
+            .into_response();
+    };
+    crate::items::create_item(pool, query).await
+}
+
 async fn health() -> impl IntoResponse {
     (
         [(
@@ -178,7 +199,17 @@ pub async fn serve() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
     let mut tera = load_tera(&project_root)?;
     tera.autoescape_on(vec!["html"]);
-    let state = AppState::new(project_root, tera);
+    let pg_pool = match crate::db::connect_pool().await {
+        Ok(pool) => {
+            eprintln!("exercises-web: connected to Postgres (items table)");
+            Some(pool)
+        }
+        Err(e) => {
+            eprintln!("exercises-web: Postgres unavailable ({e}); POST /api/items will fail");
+            None
+        }
+    };
+    let state = AppState::new(project_root, tera, pg_pool);
     let app = build_router(state);
     let port: u16 = std::env::var("EXERCISES_WEB_PORT")
         .ok()
@@ -213,6 +244,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/welcome/ping-java", get(ping_java))
         .route("/tests/run", post(run_tests_post))
         .route("/tests/source", get(test_source))
+        .route("/api/items", post(create_item))
         .route("/metrics", get(metrics))
         .layer(middleware::from_fn(record_http_request_metrics))
         .layer(tower_http::trace::TraceLayer::new_for_http())
