@@ -2,7 +2,7 @@
 name = "exercises-web"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.86"
 description = "Local cargo-nextest dashboard (Axum + Tera)"
 default-run = "exercises-web"
 

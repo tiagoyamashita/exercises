@@ -32,9 +32,9 @@ services:
       DB_NAME: demo
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      APP_STACK_RUST_BASE_URL: http://rust:8082
-      APP_STACK_PYTHON_BASE_URL: http://python:5000
-      APP_STACK_PROMETHEUS_BASE_URL: http://prometheus:9090
+      APP_STACK_RUST_BASE_URL: http://localhost:8082
+      APP_STACK_PYTHON_BASE_URL: http://localhost:5000
+      APP_STACK_PROMETHEUS_BASE_URL: http://localhost:9090
     depends_on:
       - postgres
 
@@ -62,8 +62,14 @@ services:
       EXERCISES_WEB_PORT: "8082"
       EXERCISES_RUST_ROOT: /app
       EXERCISES_JAVA_BASE_URL: http://java:8080
-    depends_on:
-      - java
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8082/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    # No depends_on: java — Rust UI and /health work without Spring; start Java when you need stack ping.
 
   # ELK — lab defaults (security off). See elk/README.md
   elasticsearch:

@@ -4,7 +4,7 @@ A small **Axum + Tera** app that mirrors the Python dashboard: it reads **JUnit 
 
 ## Prerequisites
 
-- [Rust toolchain](https://rustup.rs/) (stable). This crate declares **`rust-version = "1.85"`** in `Cargo.toml` and includes **`rust-toolchain.toml`** (`channel = "stable"`) so **rustup** picks stable when you work under **`rust/`**. Use **rustup’s** `cargo` (~/.cargo/bin); distro packages (e.g. Ubuntu **1.75**) are too old for current dependencies. **First-time install:** see **[First-time Rust install (rustup)](#first-time-rust-install-rustup)**. A **recent** stable also avoids pinning when installing **cargo-nextest** (see below).
+- [Rust toolchain](https://rustup.rs/) (stable). This crate declares **`rust-version = "1.86"`** in `Cargo.toml` and includes **`rust-toolchain.toml`** (`channel = "stable"`) so **rustup** picks stable when you work under **`rust/`**. Use **rustup’s** `cargo` (~/.cargo/bin); distro packages (e.g. Ubuntu **1.75**) are too old for current dependencies. **First-time install:** see **[First-time Rust install (rustup)](#first-time-rust-install-rustup)**. A **recent** stable also avoids pinning when installing **cargo-nextest** (see below).
 - **cargo-nextest** (the UI runs `cargo nextest`). Install either:
   - **Latest** (needs a current stable rustc, e.g. 1.91+ as required by recent nextest):  
     **`cargo install --locked cargo-nextest`** (nextest [requires `--locked`](https://nexte.st/docs/installation/from-source/) when installing from crates.io.)
@@ -36,7 +36,7 @@ which cargo
 cargo --version
 ```
 
-You want **`$HOME/.cargo/bin/cargo`** and a **recent stable** matching this repo (**`rust-version = "1.85"`** in `Cargo.toml`; deps may need **`edition2024`**). If `which` shows **`/usr/bin/cargo`** or the version stays **1.75.x**, put rustup first and reload your shell:
+You want **`$HOME/.cargo/bin/cargo`** and a **recent stable** matching this repo (**`rust-version = "1.86"`** in `Cargo.toml`; deps may need **`edition2024`**). If `which` shows **`/usr/bin/cargo`** or the version stays **1.75.x**, put rustup first and reload your shell:
 
 ```bash
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
@@ -168,12 +168,44 @@ From this directory (`rust/`):
 cargo run --bin exercises-web
 ```
 
-Open [http://127.0.0.1:8082](http://127.0.0.1:8082) (Python uses 5000; this binary defaults to **8082**). **`GET /metrics`** serves Prometheus text format (`prometheus` crate); the root **`docker-compose.yml`** **`prometheus`** service scrapes it alongside Python.
+Open [http://localhost:8082](http://localhost:8082) or [http://127.0.0.1:8082](http://127.0.0.1:8082) (Python uses **5000**; this binary defaults to **8082**). The server binds **`0.0.0.0`** by default so **`localhost`** works even when the OS prefers IPv6 for that name; if the page still does not load, try **`127.0.0.1`** explicitly (see root [DOCKER.md](../DOCKER.md) for Podman on Windows).
+
+**`GET /metrics`** serves Prometheus text format (`prometheus` crate); the root **`docker-compose.yml`** **`prometheus`** service scrapes it alongside Python.
 
 Optional:
 
+- `EXERCISES_WEB_HOST` — bind address (default **`0.0.0.0`**; use **`127.0.0.1`** if you want loopback-only)
 - `EXERCISES_WEB_PORT` — listen port (default `8082`)
 - `EXERCISES_RUST_ROOT` — workspace root if the binary is not running from this crate’s directory (must contain `Cargo.toml`)
+
+## Troubleshooting: Rust server won’t build or won’t open
+
+### `cargo build` / `cargo run` fails with `link.exe` not found (Windows)
+
+The default **MSVC** Rust target needs **Visual Studio** C++ build tools (`link.exe`). Without them, **nothing compiles**, so there is no local server to run.
+
+**Pick one:**
+
+1. **Install MSVC build tools** — see **[Windows: `link.exe` not found](#windows-linkexe-not-found)** above (Build Tools for Visual Studio, then use **Developer PowerShell** if plain PowerShell still fails).
+2. **Use the GNU / MinGW target** — see **[Windows: GNU target (MinGW) instead of MSVC](#windows-gnu-target-mingw-instead-of-msvc)**.
+3. **Skip local compilation** — build and run the app **only inside Linux containers** from the repo root (no Windows linker needed for your host):
+
+   ```bash
+   podman compose up --build rust
+   ```
+
+   (or `docker compose up --build rust`). Then open **`http://localhost:8082/health`** — expect plain **`ok`**.
+
+### Connection refused in the browser (Docker / Podman)
+
+1. **`podman compose ps`** (or **`docker compose ps`**) — **`rust`** should be **running** and show **`8082`** published (e.g. `0.0.0.0:8082->8082/tcp`).
+2. **`podman compose logs rust --tail 100`** — confirm **`listening at http://0.0.0.0:8082/`** (or similar). If the container exits, read the panic / error at the end of the log.
+3. Try **`http://127.0.0.1:8082/health`** if **`http://localhost:8082`** fails (IPv6 / Podman on Windows — see root [DOCKER.md](../DOCKER.md)).
+4. **Port in use** — another program may already listen on **8082**. Free it or change the host mapping in **`docker-compose.yml`** and set **`EXERCISES_WEB_PORT`** inside the **`rust`** service to match.
+
+### Page loads but looks empty
+
+Hard-refresh the tab. **`GET /`** should show a **Hello Rust** banner and the nextest section; **`GET /welcome`** is the smaller landing page. If logs mention **templates**, ensure **`templates/`** exists under **`EXERCISES_RUST_ROOT`** (Compose sets **`/app`** in the image).
 
 ## Reports
 
