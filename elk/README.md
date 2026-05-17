@@ -12,7 +12,7 @@ Optional **Elastic Stack** layout for **local experiments**: ship logs through *
 
 Modern deployments often add **Beats** (for example **Filebeat**) in front of Logstash; this folder ships the three core services only.
 
-**Kibana is included:** the **`kibana`** service in **`docker-compose.yml`** runs the official **Kibana 8** image on **`http://localhost:5601`**. Elasticsearch connection and bind address are set in **`kibana/kibana.yml`** (mounted into the container). There is no separate “Kibana installer” step beyond bringing the stack up (see **Run locally** below).
+**Kibana is included:** the **`kibana`** service in **`docker-compose.yml`** runs the official **Kibana 8** image on **`http://localhost:5601`**. Elasticsearch connection and bind address are set in **`kibana/kibana.yml`** (mounted into the container), including **`server.publicBaseUrl`** so redirects match opening Kibana via **localhost**. There is no separate “Kibana installer” step beyond bringing the stack up (see **Run locally** below).
 
 ## Layout
 

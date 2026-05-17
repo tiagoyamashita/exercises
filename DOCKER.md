@@ -14,6 +14,14 @@ From the **repository root** (use **Podman** if `docker` is not installed):
 podman compose up --build
 ```
 
+**Hot reload (dev):** overlay **`docker-compose.dev.yml`** so Java runs **`spring-boot:run`**, Python uses **`FLASK_DEBUG=1`**, and Rust uses **`cargo-watch`** (`rust/Dockerfile.dev`). Example:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build java python rust
+```
+
+Production **`rust/Dockerfile`** uses **`rust:1.86-bookworm`** (lockfile ICU crates need **rustc ≥ 1.86**; **`rust:1.85-*`** fails at build time).
+
 With Docker Engine:
 
 ```bash
@@ -21,6 +29,34 @@ docker compose up --build
 ```
 
 Works with **Podman** using `podman compose` (Compose v2) or legacy `podman-compose`.
+
+### Linux / WSL: `unrecognized command podman compose`
+
+Many distro packages ship **Podman without** the built-in **`podman compose`** subcommand. You will see:
+
+`Error: unrecognized command podman compose`
+
+Use one of these (same repo root, same `docker-compose.yml`):
+
+1. **Standalone `podman-compose`** (hyphen — different program):
+
+   ```bash
+   pip3 install --user podman-compose   # or: sudo apt install podman-compose (if available)
+   ~/.local/bin/podman-compose up -d --build
+   ```
+
+   Replace `podman compose …` everywhere in this repo’s docs with **`podman-compose …`** (hyphen, no space).
+
+2. **Docker Compose v2** (works with Docker Engine; on some setups Podman 4+ can delegate to the same plugin if installed):
+
+   ```bash
+   sudo apt install docker-compose-plugin docker-ce-cli  # names vary by distro
+   docker compose up -d --build
+   ```
+
+3. **Upgrade Podman** to a release that documents **`podman compose`** (often 4.1+ plus the compose plugin package on Fedora/RHEL).
+
+The **`unknown shorthand flag: 'd' in -d`** message usually means **`compose` was not accepted as a subcommand**, so **`podman`** parsed the rest incorrectly. Fix the compose integration first, then **`up -d`** will work.
 
 ### Compose layout
 
@@ -59,7 +95,7 @@ URLs (use **`127.0.0.1`** in the browser on Windows if **`localhost`** hangs or 
 - Rust: `http://127.0.0.1:8082/`
 - Grafana: `http://127.0.0.1:3000/` (default login `admin` / `admin`; `GF_SERVER_ROOT_URL` matches this — use the same host you type in the address bar)
 - Prometheus UI: `http://127.0.0.1:9090/`
-- Elasticsearch: `http://127.0.0.1:9200/`, Kibana: `http://127.0.0.1:5601/`, Logstash Beats **5044**
+- Elasticsearch: `http://localhost:9200/`, Kibana: `http://localhost:5601/` (`server.publicBaseUrl` in `elk/kibana/kibana.yml` matches this), Logstash Beats **5044**
 
 ### Browser cannot reach containers (Podman on Windows)
 

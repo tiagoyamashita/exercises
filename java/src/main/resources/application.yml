@@ -35,7 +35,8 @@ app:
   project:
     # Optional: absolute path to the directory that contains pom.xml (otherwise auto-detected).
     module-dir: ""
-  # Outbound GET targets from the test dashboard ("generate traffic" buttons). Override per environment.
+  # Outbound GET from "GET Rust/Python/Prometheus" on the home page (Java server-side, not the browser).
+  # Local ./mvnw: 127.0.0.1. Compose sets APP_STACK_* to http://rust:8082 etc. (see docker-compose.yml).
   stack:
     rust-base-url: http://127.0.0.1:8082
     python-base-url: http://127.0.0.1:5000

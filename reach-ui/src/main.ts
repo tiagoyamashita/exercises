@@ -34,11 +34,11 @@ function buildDefaultPrometheus(): string {
 }
 
 function buildDefaultElasticsearch(): string {
-  return (import.meta.env.VITE_ELASTICSEARCH_EMBED_URL || "").trim() || "http://127.0.0.1:9200/";
+  return (import.meta.env.VITE_ELASTICSEARCH_EMBED_URL || "").trim() || "http://localhost:9200/";
 }
 
 function buildDefaultKibana(): string {
-  return (import.meta.env.VITE_KIBANA_EMBED_URL || "").trim() || "http://127.0.0.1:5601/";
+  return (import.meta.env.VITE_KIBANA_EMBED_URL || "").trim() || "http://localhost:5601/";
 }
 
 function loadOrDefault(key: string, fallback: string): string {

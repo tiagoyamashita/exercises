@@ -12,6 +12,8 @@ This repo ships **three separate web apps**, each in its own stack:
 | **Python** (`python/`) | Flask dashboard | `http://localhost:5000/` |
 | **Rust** (`rust/`) | Axum dashboard | `http://localhost:8082/` |
 
+**Rust on Windows:** If **`cargo`** fails with **`link.exe` not found**, the MSVC linker is missing — use **`podman compose up --build rust`** from this repo root, or fix the toolchain per [rust/README.md — Troubleshooting: Rust server won’t build or won’t open](rust/README.md#troubleshooting-rust-server-wont-build-or-wont-open).
+
 Illustration (same stacks; Postgres is used when the Java app is wired to a real database):
 
 ```mermaid

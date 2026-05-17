@@ -184,10 +184,12 @@ pub async fn serve() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8082);
+    // Default 0.0.0.0 so http://localhost:PORT works reliably (Docker sets this too). Binding only
+    // 127.0.0.1 can fail when the browser resolves "localhost" to ::1 first (Windows / some IPv6 setups).
     let bind_host: IpAddr = std::env::var("EXERCISES_WEB_HOST")
         .ok()
         .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST));
+        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
     let addr = SocketAddr::new(bind_host, port);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
