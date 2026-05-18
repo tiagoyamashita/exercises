@@ -495,7 +495,6 @@ embedReload.addEventListener("click", () => {
     if (activeEmbedTab === "python") lastIframeSrc.python = "";
   });
 });
-
 const style = document.createElement("style");
 style.textContent = `
   body { font-family: system-ui, sans-serif; margin: 0; padding: 0; line-height: 1.45; background: #fafafa; color: #1a1a1a; }
@@ -614,3 +613,4 @@ style.textContent = `
 document.head.append(style);
 
 void runProbes().then(() => selectEmbedTab("rust"));
+
