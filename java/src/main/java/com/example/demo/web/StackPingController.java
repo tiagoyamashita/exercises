@@ -60,4 +60,10 @@ public class StackPingController {
     log.info("Dashboard stack ping: user clicked Reach UI — issuing outbound GET");
     return stackPingService.pingReachUi();
   }
+
+  @GetMapping("/all")
+  public Map<String, Object> pingAll() {
+    log.info("Dashboard stack ping: ping all services");
+    return stackPingService.pingAll();
+  }
 }

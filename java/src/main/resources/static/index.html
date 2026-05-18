@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="color-scheme" content="dark light"/>
+    <title>Java APP</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #121212;
+        --text: #e8e8ea;
+        --muted: #a3a3a8;
+        --border: #3f3f46;
+        --th-bg: #27272a;
+        --code-bg: #27272a;
+        --code-text: #e4e4e7;
+        --ok: #4ade80;
+        --warn: #fbbf24;
+        --err: #f87171;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          color-scheme: light;
+          --bg: #fafafa;
+          --text: #1a1a1a;
+          --muted: #555;
+          --border: #ccc;
+          --th-bg: #ececec;
+          --code-bg: #eee;
+          --code-text: #222;
+          --ok: #0d6d0d;
+          --warn: #b45309;
+          --err: #b91c1c;
+        }
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 1.5rem;
+        max-width: min(52rem, calc(100vw - 3rem));
+        background: var(--bg);
+        color: var(--text);
+      }
+      h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.35rem; letter-spacing: 0.02em; }
+      .subtitle { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.25rem; line-height: 1.45; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1rem; }
+      .btn {
+        cursor: pointer;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--code-bg);
+        color: var(--text);
+      }
+      .btn:hover { filter: brightness(1.08); }
+      .btn.primary { border-color: var(--ok); color: var(--ok); }
+      .connectivity {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(128, 128, 128, 0.05);
+      }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+      th, td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--border); }
+      th { background: var(--th-bg); font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+      tr:last-child td { border-bottom: none; }
+      .status-cell { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+      .status-pending { color: var(--muted); font-style: italic; }
+      .status-ok { color: var(--ok); font-weight: 600; }
+      .status-warn { color: var(--warn); font-weight: 600; }
+      .status-err { color: var(--err); font-weight: 600; }
+      .url-hint { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 0.15rem; }
+      details.extra { margin-top: 1.25rem; font-size: 0.88rem; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <h1>Java APP</h1>
+    <p class="subtitle">
+      Connectivity from this Java server: each <strong>Ping</strong> runs an outbound
+      <code>GET</code> and shows the HTTP status (or error if unreachable).
+    </p>
+
+    <div class="toolbar">
+      <button type="button" class="btn primary" id="ping-all">Ping all services</button>
+    </div>
+
+    <section class="connectivity" aria-labelledby="connectivity-heading">
+      <h2 id="connectivity-heading" class="visually-hidden">Service connectivity</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Test</th>
+            <th scope="col">Response</th>
+          </tr>
+        </thead>
+        <tbody id="connectivity-rows">
+          <tr data-target="rust" data-label="Rust">
+            <td>Rust</td>
+            <td><button type="button" class="btn ping-btn" data-target="rust">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="python" data-label="Python">
+            <td>Python</td>
+            <td><button type="button" class="btn ping-btn" data-target="python">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="prometheus" data-label="Prometheus">
+            <td>Prometheus</td>
+            <td><button type="button" class="btn ping-btn" data-target="prometheus">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="grafana" data-label="Grafana">
+            <td>Grafana</td>
+            <td><button type="button" class="btn ping-btn" data-target="grafana">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="elasticsearch" data-label="Elasticsearch">
+            <td>Elasticsearch</td>
+            <td><button type="button" class="btn ping-btn" data-target="elasticsearch">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="kibana" data-label="Kibana">
+            <td>Kibana</td>
+            <td><button type="button" class="btn ping-btn" data-target="kibana">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+          <tr data-target="reach-ui" data-label="Reach UI">
+            <td>Reach UI</td>
+            <td><button type="button" class="btn ping-btn" data-target="reach-ui">Ping</button></td>
+            <td class="status-cell"><span class="status-pending">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <details class="extra">
+      <summary>Rust item relay (POST to Rust → PostgreSQL)</summary>
+      <p style="margin: 0.5rem 0;">
+        <input type="text" id="rust-item-name" placeholder="Item name" style="padding: 0.35rem 0.5rem; margin-right: 0.35rem;"/>
+        <button type="button" class="btn" id="rust-item-add">Add via Rust</button>
+      </p>
+      <pre id="rust-item-result" style="font-size: 0.78rem; overflow-x: auto; white-space: pre-wrap;"></pre>
+    </details>
+
+    <style>
+      .visually-hidden {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+      }
+    </style>
+
+    <script>
+      (function () {
+        var routes = {
+          rust: "/dashboard/stack-ping/rust",
+          python: "/dashboard/stack-ping/python",
+          prometheus: "/dashboard/stack-ping/prometheus",
+          grafana: "/dashboard/stack-ping/grafana",
+          elasticsearch: "/dashboard/stack-ping/elasticsearch",
+          kibana: "/dashboard/stack-ping/kibana",
+          "reach-ui": "/dashboard/stack-ping/reach-ui"
+        };
+
+        function rowFor(target) {
+          return document.querySelector('tr[data-target="' + target + '"]');
+        }
+
+        function setStatus(target, html) {
+          var row = rowFor(target);
+          if (!row) return;
+          var cell = row.querySelector(".status-cell");
+          if (cell) cell.innerHTML = html;
+        }
+
+        function formatResult(d) {
+          var url = d.url != null ? String(d.url) : "";
+          var urlLine = url ? '<span class="url-hint">' + url + "</span>" : "";
+          if (d.ok === true && d.status != null) {
+            return (
+              '<span class="status-ok">HTTP ' + d.status + "</span>" + urlLine
+            );
+          }
+          if (d.status != null) {
+            return (
+              '<span class="status-warn">HTTP ' +
+              d.status +
+              "</span>" +
+              (d.error ? " " + String(d.error) : "") +
+              urlLine
+            );
+          }
+          var err = d.error != null ? String(d.error) : "Unreachable";
+          return '<span class="status-err">' + err + "</span>" + urlLine;
+        }
+
+        function pingOne(target) {
+          var route = routes[target];
+          if (!route) return Promise.resolve();
+          setStatus(target, '<span class="status-pending">Pinging…</span>');
+          return fetch(route, { method: "GET", credentials: "same-origin" })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { httpOk: res.ok, data: data };
+              });
+            })
+            .then(function (r) {
+              setStatus(target, formatResult(r.data || {}));
+            })
+            .catch(function (err) {
+              setStatus(
+                target,
+                '<span class="status-err">' +
+                  String(err.message || err) +
+                  "</span>"
+              );
+            });
+        }
+
+        document.getElementById("connectivity-rows").addEventListener("click", function (ev) {
+          var btn = ev.target.closest && ev.target.closest(".ping-btn");
+          if (!btn) return;
+          var target = btn.getAttribute("data-target");
+          if (target) pingOne(target);
+        });
+
+        document.getElementById("ping-all").addEventListener("click", function () {
+          Object.keys(routes).forEach(function (t) {
+            setStatus(t, '<span class="status-pending">Pinging…</span>');
+          });
+          fetch("/dashboard/stack-ping/all", { method: "GET", credentials: "same-origin" })
+            .then(function (res) {
+              return res.json();
+            })
+            .then(function (body) {
+              var list = body && body.results ? body.results : [];
+              list.forEach(function (d) {
+                var stack = d.stack != null ? String(d.stack) : "";
+                setStatus(stack, formatResult(d));
+              });
+            })
+            .catch(function (err) {
+              Object.keys(routes).forEach(function (t) {
+                setStatus(
+                  t,
+                  '<span class="status-err">' + String(err.message || err) + "</span>"
+                );
+              });
+            });
+        });
+
+        var addBtn = document.getElementById("rust-item-add");
+        var nameInput = document.getElementById("rust-item-name");
+        var resultEl = document.getElementById("rust-item-result");
+        if (addBtn && nameInput && resultEl) {
+          addBtn.addEventListener("click", function () {
+            var name = (nameInput.value || "").trim();
+            if (!name) {
+              resultEl.textContent = "Enter an item name.";
+              return;
+            }
+            resultEl.textContent = "Calling Rust…";
+            fetch("/dashboard/items/add-via-rust?name=" + encodeURIComponent(name), {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { Accept: "application/json" }
+            })
+              .then(function (res) {
+                return res.json().then(function (data) {
+                  return { httpOk: res.ok, status: res.status, data: data };
+                });
+              })
+              .then(function (r) {
+                var lines = ["Java relay HTTP " + r.status];
+                var d = r.data || {};
+                if (d.rustUrl) lines.push("Rust: " + d.rustUrl);
+                if (d.status != null) lines.push("Rust response HTTP " + d.status);
+                if (d.rust) lines.push(JSON.stringify(d.rust, null, 2));
+                else if (d.body) lines.push(String(d.body));
+                if (d.error) lines.push("Error: " + d.error);
+                if (r.httpOk && d.ok === true) nameInput.value = "";
+                resultEl.textContent = lines.join("\n");
+              })
+              .catch(function (err) {
+                resultEl.textContent = String(err.message || err);
+              });
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
