@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
   private final ProjectLayout projectLayout;
+  private final StackPingProperties stackPing;
 
-  public HomeController(ProjectLayout projectLayout) {
+  public HomeController(ProjectLayout projectLayout, StackPingProperties stackPing) {
     this.projectLayout = projectLayout;
+    this.stackPing = stackPing;
   }
 
   @GetMapping("/")
@@ -34,6 +36,7 @@ public class HomeController {
       model.addAttribute("localReadmePath", readmeAtRepoRoot.toAbsolutePath().toString());
     }
     model.addAttribute("offlineFetchHint", offlineFetchHint(runDashboardHtml));
+    model.addAttribute("stackLinks", stackPing);
     return "home";
   }
 

@@ -36,4 +36,28 @@ public class StackPingController {
     log.info("Dashboard stack ping: user clicked Prometheus — issuing outbound GET");
     return stackPingService.pingPrometheus();
   }
+
+  @GetMapping("/grafana")
+  public Map<String, Object> pingGrafana() {
+    log.info("Dashboard stack ping: user clicked Grafana — issuing outbound GET");
+    return stackPingService.pingGrafana();
+  }
+
+  @GetMapping("/elasticsearch")
+  public Map<String, Object> pingElasticsearch() {
+    log.info("Dashboard stack ping: user clicked Elasticsearch — issuing outbound GET");
+    return stackPingService.pingElasticsearch();
+  }
+
+  @GetMapping("/kibana")
+  public Map<String, Object> pingKibana() {
+    log.info("Dashboard stack ping: user clicked Kibana — issuing outbound GET");
+    return stackPingService.pingKibana();
+  }
+
+  @GetMapping("/reach-ui")
+  public Map<String, Object> pingReachUi() {
+    log.info("Dashboard stack ping: user clicked Reach UI — issuing outbound GET");
+    return stackPingService.pingReachUi();
+  }
 }

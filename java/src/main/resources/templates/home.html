@@ -68,19 +68,66 @@
       }
       .btn:hover { filter: brightness(1.08); }
       .btn.primary { border-color: var(--accent); color: var(--accent); }
-      .stack-ping-bar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        align-items: center;
+      .stack-services {
         margin: 0 0 1rem;
-        padding: 0.55rem 0.65rem;
+        padding: 0.65rem 0.75rem;
         border: 1px solid var(--border);
         border-radius: 8px;
         background: rgba(128, 128, 128, 0.06);
       }
-      .stack-ping-label { font-size: 0.88rem; margin-right: 0.15rem; }
-      .stack-ping-status { font-size: 0.8rem; color: var(--muted); flex: 1 1 10rem; min-width: 0; }
+      .stack-services .hint { margin: 0 0 0.55rem; }
+      .stack-service-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      .stack-service-table th,
+      .stack-service-table td {
+        padding: 0.35rem 0.45rem;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: middle;
+      }
+      .stack-service-table th {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        background: var(--th-bg);
+      }
+      .stack-service-table tr:last-child td { border-bottom: none; }
+      .stack-service-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+      .stack-ping-status {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin: 0.55rem 0 0;
+        min-height: 1.2em;
+      }
+      a.btn { text-decoration: none; display: inline-block; }
+      .stack-quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 0.65rem;
+      }
+      .stack-quick-links .btn.grafana {
+        border-color: #f46800;
+        color: #f46800;
+      }
+      .stack-quick-links .btn.reach-ui {
+        border-color: #60a5fa;
+        color: #60a5fa;
+      }
+      .stack-featured {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0 0 0.65rem;
+        padding: 0.55rem 0.65rem;
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        background: rgba(96, 165, 250, 0.06);
+      }
+      .stack-featured .btn { font-size: 0.9rem; padding: 0.4rem 0.85rem; }
       h2.section { font-size: 1.05rem; font-weight: 650; margin: 0 0 0.5rem; }
       .rust-item-panel {
         margin: 0 0 1.25rem;
@@ -142,6 +189,91 @@
   </head>
   <body>
     <h1>Spring Boot demo</h1>
+    <p class="hint" style="margin: 0 0 0.75rem; font-size: 0.85rem;">
+      Dashboard v2 — Stack services (Grafana, Reach UI), Rust→Postgres item relay.
+    </p>
+
+    <section class="stack-services" id="stack-services" aria-labelledby="stack-services-heading">
+      <h2 class="section" id="stack-services-heading">Stack services</h2>
+      <p class="hint">
+        <strong>Open</strong> launches the UI in a new tab.
+        <strong>GET</strong> probes from Java (Compose uses container DNS).
+        Grafana <code>:3000</code> · Reach UI <code>:5173</code>
+      </p>
+      <div class="stack-featured" aria-label="Grafana and Reach UI">
+        <a class="btn grafana" th:href="${stackLinks.grafanaBrowserUrl}" target="_blank" rel="noopener noreferrer">Grafana (:3000)</a>
+        <a class="btn reach-ui" th:href="${stackLinks.reachUiBrowserUrl}" target="_blank" rel="noopener noreferrer">Reach UI (:5173)</a>
+      </div>
+      <div class="stack-quick-links" aria-label="All stack UIs">
+        <a class="btn" th:href="${stackLinks.rustBrowserUrl}" target="_blank" rel="noopener noreferrer">Rust</a>
+        <a class="btn" th:href="${stackLinks.pythonBrowserUrl}" target="_blank" rel="noopener noreferrer">Python</a>
+        <a class="btn" th:href="${stackLinks.prometheusBrowserUrl}" target="_blank" rel="noopener noreferrer">Prometheus</a>
+        <a class="btn grafana" th:href="${stackLinks.grafanaBrowserUrl}" target="_blank" rel="noopener noreferrer">Grafana</a>
+        <a class="btn reach-ui" th:href="${stackLinks.reachUiBrowserUrl}" target="_blank" rel="noopener noreferrer">Reach UI</a>
+        <a class="btn" th:href="${stackLinks.elasticsearchBrowserUrl}" target="_blank" rel="noopener noreferrer">Elasticsearch</a>
+        <a class="btn" th:href="${stackLinks.kibanaBrowserUrl}" target="_blank" rel="noopener noreferrer">Kibana</a>
+      </div>
+      <table class="stack-service-table">
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rust</td>
+            <td class="stack-service-actions">
+              <a class="btn" th:href="${stackLinks.rustBrowserUrl}" target="_blank" rel="noopener noreferrer">Open</a>
+              <button type="button" class="btn stack-ping-btn" data-target="rust">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Python</td>
+            <td class="stack-service-actions">
+              <a class="btn" th:href="${stackLinks.pythonBrowserUrl}" target="_blank" rel="noopener noreferrer">Open</a>
+              <button type="button" class="btn stack-ping-btn" data-target="python">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Prometheus</td>
+            <td class="stack-service-actions">
+              <a class="btn" th:href="${stackLinks.prometheusBrowserUrl}" target="_blank" rel="noopener noreferrer">Open</a>
+              <button type="button" class="btn stack-ping-btn" data-target="prometheus">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Grafana</td>
+            <td class="stack-service-actions">
+              <a class="btn grafana" th:href="${stackLinks.grafanaBrowserUrl}" target="_blank" rel="noopener noreferrer">Open Grafana</a>
+              <button type="button" class="btn stack-ping-btn" data-target="grafana">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Elasticsearch</td>
+            <td class="stack-service-actions">
+              <a class="btn" th:href="${stackLinks.elasticsearchBrowserUrl}" target="_blank" rel="noopener noreferrer">Open</a>
+              <button type="button" class="btn stack-ping-btn" data-target="elasticsearch">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Kibana</td>
+            <td class="stack-service-actions">
+              <a class="btn" th:href="${stackLinks.kibanaBrowserUrl}" target="_blank" rel="noopener noreferrer">Open</a>
+              <button type="button" class="btn stack-ping-btn" data-target="kibana">GET</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Reach UI</td>
+            <td class="stack-service-actions">
+              <a class="btn reach-ui" th:href="${stackLinks.reachUiBrowserUrl}" target="_blank" rel="noopener noreferrer">Open Reach UI</a>
+              <button type="button" class="btn stack-ping-btn" data-target="reach-ui">GET</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p id="stack-ping-status" class="stack-ping-status" role="status" aria-live="polite"></p>
+    </section>
 
     <section class="rust-item-panel" id="rust-item-panel" aria-labelledby="rust-item-heading">
       <h2 class="section" id="rust-item-heading">Add item via Rust → PostgreSQL</h2>
@@ -164,14 +296,6 @@
       Exercise helpers: <code>GET /dashboard/test-template</code>, <code>POST /dashboard/exercise-file</code>,
       <code>GET /tests/source</code>. REST examples: <code>GET /api/items</code>.
     </p>
-
-    <div class="stack-ping-bar hint" id="stack-ping-bar">
-      <span class="stack-ping-label">Generate traffic (server-side empty <code>GET</code> to Rust / Python / Prometheus):</span>
-      <button type="button" class="btn stack-ping-btn" data-target="rust">GET Rust</button>
-      <button type="button" class="btn stack-ping-btn" data-target="python">GET Python</button>
-      <button type="button" class="btn stack-ping-btn" data-target="prometheus">GET Prometheus</button>
-      <span id="stack-ping-status" class="stack-ping-status" role="status" aria-live="polite"></span>
-    </div>
 
     <details class="run-local-details hint">
       <summary>Run locally (paths on this machine)</summary>
@@ -204,14 +328,19 @@
       /*<![CDATA[*/
       (function () {
         if (!window.fetch) return;
-        var bar = document.getElementById('stack-ping-bar');
+        var section = document.getElementById('stack-services');
         var statusEl = document.getElementById('stack-ping-status');
-        if (!bar || !statusEl) return;
-        var rustUrl = /*[[@{/dashboard/stack-ping/rust}]]*/ '/dashboard/stack-ping/rust';
-        var pythonUrl = /*[[@{/dashboard/stack-ping/python}]]*/ '/dashboard/stack-ping/python';
-        var promUrl = /*[[@{/dashboard/stack-ping/prometheus}]]*/ '/dashboard/stack-ping/prometheus';
-        var routes = { rust: rustUrl, python: pythonUrl, prometheus: promUrl };
-        bar.addEventListener('click', function (ev) {
+        if (!section || !statusEl) return;
+        var routes = {
+          rust: /*[[@{/dashboard/stack-ping/rust}]]*/ '/dashboard/stack-ping/rust',
+          python: /*[[@{/dashboard/stack-ping/python}]]*/ '/dashboard/stack-ping/python',
+          prometheus: /*[[@{/dashboard/stack-ping/prometheus}]]*/ '/dashboard/stack-ping/prometheus',
+          grafana: /*[[@{/dashboard/stack-ping/grafana}]]*/ '/dashboard/stack-ping/grafana',
+          elasticsearch: /*[[@{/dashboard/stack-ping/elasticsearch}]]*/ '/dashboard/stack-ping/elasticsearch',
+          kibana: /*[[@{/dashboard/stack-ping/kibana}]]*/ '/dashboard/stack-ping/kibana',
+          'reach-ui': /*[[@{/dashboard/stack-ping/reach-ui}]]*/ '/dashboard/stack-ping/reach-ui'
+        };
+        section.addEventListener('click', function (ev) {
           var btn = ev.target.closest ? ev.target.closest('.stack-ping-btn') : null;
           if (!btn) return;
           var target = btn.getAttribute('data-target');

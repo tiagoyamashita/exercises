@@ -52,6 +52,22 @@ public class StackPingService {
     return emptyGet("prometheus", properties.getPrometheusBaseUrl());
   }
 
+  public Map<String, Object> pingGrafana() {
+    return emptyGet("grafana", properties.getGrafanaBaseUrl());
+  }
+
+  public Map<String, Object> pingElasticsearch() {
+    return emptyGet("elasticsearch", properties.getElasticsearchBaseUrl());
+  }
+
+  public Map<String, Object> pingKibana() {
+    return emptyGet("kibana", properties.getKibanaBaseUrl());
+  }
+
+  public Map<String, Object> pingReachUi() {
+    return emptyGet("reach-ui", properties.getReachUiBaseUrl());
+  }
+
   private static String normalizeRoot(String baseUrl) {
     if (baseUrl == null || baseUrl.isBlank()) {
       return "http://127.0.0.1/";
