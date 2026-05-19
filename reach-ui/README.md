@@ -20,6 +20,8 @@ npm run dev
 
 Open the URL Vite prints (usually **http://127.0.0.1:5173/**).
 
+**Compose dev overlay** (from repo root, with **`docker-compose.dev.yml`**): Vite is published on **`http://127.0.0.1:5174/`** so it does not clash with the production **reach-ui** mapping on **5173**.
+
 Production build:
 
 ```bash

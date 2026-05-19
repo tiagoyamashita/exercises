@@ -1,27 +1,21 @@
 # Hot-reload dev overlay — use with the main compose file:
 #
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build java python rust
+#   podman compose -f docker-compose.yml -f docker-compose.dev.yml up --build postgres java python rust reach-ui
 #
-# Java: spring-boot:run (restarts on classpath changes; templates/static often need a manual refresh).
-# Python: FLASK_DEBUG=1 reloader when source under ./python changes.
-# Rust: cargo-watch rebuilds on src/ and templates/ changes (first start compiles; can take a few minutes).
+# Lighter (no ELK): add grafana prometheus to the command above as needed.
+#
+# Java: spring-boot:run (restarts on classpath changes; static/index.html may need a browser refresh).
+# Python: FLASK_DEBUG=1 reloader when ./python changes.
+# Rust: cargo-watch rebuilds on src/ and templates/ (first start compiles; can take a few minutes).
+# Reach UI: Vite dev server on http://127.0.0.1:5174 (host) — production nginx stays on 5173 from docker-compose.yml.
 services:
   java:
     build:
       context: ./java
-      dockerfile: Dockerfile
-      args:
-        SKIP_TESTS: "true"
-    entrypoint: []
+      dockerfile: Dockerfile.dev
     volumes:
       - ./java:/workspace
       - maven-cache:/root/.m2
-    command:
-      [
-        "sh",
-        "-c",
-        "./mvnw -q compile spring-boot:run -Dspring-boot.run.jvmArguments=-Dserver.address=0.0.0.0",
-      ]
 
   python:
     build:
@@ -37,6 +31,12 @@ services:
     build:
       context: ./rust
       dockerfile: Dockerfile.dev
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8082/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 300s
     volumes:
       - ./rust:/app
       - rust-cargo-registry:/usr/local/cargo/registry
@@ -53,7 +53,28 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
 
+  reach-ui:
+    build:
+      context: ./reach-ui
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./reach-ui:/app
+      - reach-ui-node-modules:/app/node_modules
+    ports:
+      - "5174:5173"
+    environment:
+      VITE_PROXY_DOCKER: "1"
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
 volumes:
   maven-cache:
   rust-cargo-registry:
   rust-target:
+  reach-ui-node-modules:

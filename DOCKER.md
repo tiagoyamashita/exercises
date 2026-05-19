@@ -14,10 +14,10 @@ From the **repository root** (use **Podman** if `docker` is not installed):
 podman compose up --build
 ```
 
-**Hot reload (dev):** overlay **`docker-compose.dev.yml`** so Java runs **`spring-boot:run`**, Python uses **`FLASK_DEBUG=1`**, and Rust uses **`cargo-watch`** (`rust/Dockerfile.dev`). Example:
+**Hot reload (dev):** overlay **`docker-compose.dev.yml`** so Java runs **`spring-boot:run`**, Python uses **`FLASK_DEBUG=1`**, Rust uses **`cargo-watch`** (`rust/Dockerfile.dev`), and **reach-ui** runs the Vite dev server on **`http://127.0.0.1:5174/`** (host **5174** → container **5173**; production nginx stays on **5173**). Example:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build java python rust
+podman compose -f docker-compose.yml -f docker-compose.dev.yml up --build java python rust reach-ui
 ```
 
 Production **`rust/Dockerfile`** uses **`rust:1.86-bookworm`** (lockfile ICU crates need **rustc ≥ 1.86**; **`rust:1.85-*`** fails at build time).
