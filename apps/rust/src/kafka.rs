@@ -19,6 +19,7 @@ use std::time::Duration;
 
 const SOURCE: &str = "src/kafka.rs";
 pub const CREATE_USER_TOPIC: &str = "create-user";
+pub const CREATE_ITEM_TOPIC: &str = "create-item";
 pub const CREATE_USER_CONSUMER_GROUP: &str = "webserver-benchmark-create-user";
 
 /// Mirrors Java `app.kafka.*` / `spring.kafka.admin.fail-fast`.
@@ -29,6 +30,9 @@ pub struct KafkaAdminConfig {
     pub create_user_consumer_group: String,
     pub create_user_partitions: i32,
     pub create_user_replicas: i32,
+    pub create_item_topic: String,
+    pub create_item_partitions: i32,
+    pub create_item_replicas: i32,
     pub fail_fast: bool,
 }
 
@@ -43,6 +47,10 @@ impl KafkaAdminConfig {
                 .unwrap_or_else(|_| CREATE_USER_CONSUMER_GROUP.into()),
             create_user_partitions: env_i32("KAFKA_CREATE_USER_PARTITIONS", 1),
             create_user_replicas: env_i32("KAFKA_CREATE_USER_REPLICAS", 1),
+            create_item_topic: std::env::var("KAFKA_CREATE_ITEM_TOPIC")
+                .unwrap_or_else(|_| CREATE_ITEM_TOPIC.into()),
+            create_item_partitions: env_i32("KAFKA_CREATE_ITEM_PARTITIONS", 1),
+            create_item_replicas: env_i32("KAFKA_CREATE_ITEM_REPLICAS", 1),
             fail_fast: env_bool("KAFKA_ADMIN_FAIL_FAST", true),
         }
     }
@@ -62,8 +70,7 @@ fn env_bool(key: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
-/// Ensures the `create-user` topic exists with the configured layout. Fails when `fail_fast` is true
-/// and Kafka is unreachable or the existing topic does not match config (same semantics as Java).
+/// Ensures Kafka topics exist with the configured layout.
 pub async fn ensure_kafka_admin(config: &KafkaAdminConfig) -> Result<(), String> {
     let admin: AdminClient<DefaultClientContext> = ClientConfig::new()
         .set("bootstrap.servers", &config.bootstrap_servers)
@@ -75,15 +82,37 @@ pub async fn ensure_kafka_admin(config: &KafkaAdminConfig) -> Result<(), String>
             )
         })?;
 
-    match topic_state(&admin, &config.create_user_topic, config)? {
+    ensure_topic(
+        &admin,
+        &config.create_user_topic,
+        config.create_user_partitions,
+        config.create_user_replicas,
+    )
+    .await?;
+    ensure_topic(
+        &admin,
+        &config.create_item_topic,
+        config.create_item_partitions,
+        config.create_item_replicas,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn ensure_topic(
+    admin: &AdminClient<DefaultClientContext>,
+    topic: &str,
+    partitions: i32,
+    replicas: i32,
+) -> Result<(), String> {
+    match topic_state(admin, topic, partitions, replicas)? {
         TopicState::Valid => {
             tracing::info!(
                 source = SOURCE,
                 controller = "ensure_kafka_admin",
-                topic = %config.create_user_topic,
-                partitions = config.create_user_partitions,
-                replicas = config.create_user_replicas,
-                bootstrap = %config.bootstrap_servers,
+                topic = %topic,
+                partitions = partitions,
+                replicas = replicas,
                 "Kafka topic already exists"
             );
             return Ok(());
@@ -91,11 +120,7 @@ pub async fn ensure_kafka_admin(config: &KafkaAdminConfig) -> Result<(), String>
         TopicState::Missing => {}
     }
 
-    let new_topic = NewTopic::new(
-        config.create_user_topic.as_str(),
-        config.create_user_partitions,
-        TopicReplication::Fixed(config.create_user_replicas),
-    );
+    let new_topic = NewTopic::new(topic, partitions, TopicReplication::Fixed(replicas));
 
     let results = admin
         .create_topics(std::slice::from_ref(&new_topic), &AdminOptions::new())
@@ -109,13 +134,13 @@ pub async fn ensure_kafka_admin(config: &KafkaAdminConfig) -> Result<(), String>
                     source = SOURCE,
                     controller = "ensure_kafka_admin",
                     topic = %created,
-                    partitions = config.create_user_partitions,
-                    replicas = config.create_user_replicas,
+                    partitions = partitions,
+                    replicas = replicas,
                     "Kafka topic created"
                 );
             }
             Err((name, RDKafkaErrorCode::TopicAlreadyExists)) => {
-                match topic_state(&admin, &name, config)? {
+                match topic_state(admin, &name, partitions, replicas)? {
                     TopicState::Valid => {
                         tracing::info!(
                             source = SOURCE,
@@ -138,6 +163,148 @@ pub async fn ensure_kafka_admin(config: &KafkaAdminConfig) -> Result<(), String>
     }
 
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PublishCreateItemQuery {
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublishCreateItemResponse {
+    pub ok: bool,
+    #[serde(rename = "requestId")]
+    pub request_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub topic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consumer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateItemEvent {
+    event: String,
+    name: String,
+    #[serde(rename = "requestId")]
+    request_id: String,
+}
+
+/// Publishes a `create-item` event to Kafka (Python consumer inserts into Postgres).
+pub async fn publish_create_item_event(
+    config: &KafkaAdminConfig,
+    query: PublishCreateItemQuery,
+    request_id: &str,
+) -> Response {
+    let trimmed_name = query.name.trim().to_string();
+    let outbound_id = crate::request_id::resolve_outbound_request_id(Some(request_id));
+
+    if trimmed_name.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(PublishCreateItemResponse {
+                ok: false,
+                request_id: request_id.to_string(),
+                event: None,
+                name: None,
+                topic: None,
+                consumer: None,
+                error: Some("name must not be blank".into()),
+            }),
+        )
+            .into_response();
+    }
+
+    let payload = match serde_json::to_string(&CreateItemEvent {
+        event: CREATE_ITEM_TOPIC.to_string(),
+        name: trimmed_name.clone(),
+        request_id: outbound_id.clone(),
+    }) {
+        Ok(json) => json,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(PublishCreateItemResponse {
+                    ok: false,
+                    request_id: request_id.to_string(),
+                    event: Some(CREATE_ITEM_TOPIC.to_string()),
+                    name: Some(trimmed_name),
+                    topic: None,
+                    consumer: Some("python".into()),
+                    error: Some(format!("failed to serialize create-item event: {e}")),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    let producer: FutureProducer = match ClientConfig::new()
+        .set("bootstrap.servers", &config.bootstrap_servers)
+        .create()
+    {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(PublishCreateItemResponse {
+                    ok: false,
+                    request_id: request_id.to_string(),
+                    event: Some(CREATE_ITEM_TOPIC.to_string()),
+                    name: Some(trimmed_name),
+                    topic: None,
+                    consumer: Some("python".into()),
+                    error: Some(format!("Kafka producer client: {e}")),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    let mut record = FutureRecord::to(config.create_item_topic.as_str())
+        .key(&trimmed_name)
+        .payload(&payload);
+    record = record.headers(OwnedHeaders::new().insert(Header {
+        key: "X-Request-ID",
+        value: Some(outbound_id.as_str()),
+    }));
+
+    if let Err((e, _)) = producer
+        .send(record, Timeout::After(Duration::from_secs(10)))
+        .await
+    {
+        return (
+            StatusCode::BAD_GATEWAY,
+            Json(PublishCreateItemResponse {
+                ok: false,
+                request_id: request_id.to_string(),
+                event: Some(CREATE_ITEM_TOPIC.to_string()),
+                name: Some(trimmed_name),
+                topic: Some(config.create_item_topic.clone()),
+                consumer: Some("python".into()),
+                error: Some(format!("Kafka publish failed: {e}")),
+            }),
+        )
+            .into_response();
+    }
+
+    (
+        StatusCode::OK,
+        Json(PublishCreateItemResponse {
+            ok: true,
+            request_id: request_id.to_string(),
+            event: Some(CREATE_ITEM_TOPIC.to_string()),
+            name: Some(trimmed_name),
+            topic: Some(config.create_item_topic.clone()),
+            consumer: Some("python".into()),
+            error: None,
+        }),
+    )
+        .into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -365,7 +532,8 @@ enum TopicState {
 fn topic_state(
     admin: &AdminClient<DefaultClientContext>,
     topic: &str,
-    config: &KafkaAdminConfig,
+    partitions: i32,
+    replicas: i32,
 ) -> Result<TopicState, String> {
     let metadata = admin
         .inner()
@@ -383,17 +551,16 @@ fn topic_state(
         return Err(format!("Kafka topic {topic} metadata error: {err:?}"));
     }
 
-    validate_topic_layout(found, config)?;
+    validate_topic_layout(found, partitions, replicas)?;
     Ok(TopicState::Valid)
 }
 
-fn validate_topic_layout(meta: &MetadataTopic, config: &KafkaAdminConfig) -> Result<(), String> {
-    let partitions = meta.partitions().len() as i32;
-    if partitions != config.create_user_partitions {
+fn validate_topic_layout(meta: &MetadataTopic, partitions: i32, replicas: i32) -> Result<(), String> {
+    let actual_partitions = meta.partitions().len() as i32;
+    if actual_partitions != partitions {
         return Err(format!(
-            "Kafka topic {} has {partitions} partitions, expected {}",
-            meta.name(),
-            config.create_user_partitions
+            "Kafka topic {} has {actual_partitions} partitions, expected {partitions}",
+            meta.name()
         ));
     }
 
@@ -402,11 +569,10 @@ fn validate_topic_layout(meta: &MetadataTopic, config: &KafkaAdminConfig) -> Res
         .first()
         .map(|p| p.replicas().len() as i32)
         .unwrap_or(0);
-    if replication != config.create_user_replicas {
+    if replication != replicas {
         return Err(format!(
-            "Kafka topic {} replication factor is {replication}, expected {}",
-            meta.name(),
-            config.create_user_replicas
+            "Kafka topic {} replication factor is {replication}, expected {replicas}",
+            meta.name()
         ));
     }
 

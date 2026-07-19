@@ -34,7 +34,211 @@ pub struct CreateItemResponse {
     pub request_id: Option<String>,
 }
 
-/// `GET /api/items` — lists rows from Postgres `items` (Flyway schema + seed from Java).
+#[derive(Deserialize, ToSchema)]
+pub struct UpdateItemRequest {
+    pub name: String,
+}
+
+fn item_row_to_response(row: crate::db::ItemRow) -> ItemResponse {
+    ItemResponse {
+        id: row.id,
+        name: row.name,
+        created_at: row.created_at,
+    }
+}
+
+/// `GET /api/items/{id}` — fetch one row by id.
+pub async fn get_item_by_id(
+    pool: PgPool,
+    item_id: i64,
+    request_id: Option<&str>,
+) -> impl IntoResponse {
+    tracing::info!(
+        source = SOURCE,
+        controller = "get_item_by_id",
+        method = "GET",
+        path = "/api/items/{id}",
+        id = item_id,
+        "get_item_by_id request received"
+    );
+    match crate::db::find_item_by_id(&pool, item_id, request_id).await {
+        Ok(Some(row)) => {
+            let response = item_row_to_response(row);
+            tracing::info!(
+                source = SOURCE,
+                controller = "get_item_by_id",
+                id = item_id,
+                name = %response.name,
+                "get_item_by_id succeeded"
+            );
+            (StatusCode::OK, Json(response)).into_response()
+        }
+        Ok(None) => {
+            tracing::warn!(
+                source = SOURCE,
+                controller = "get_item_by_id",
+                id = item_id,
+                "get_item_by_id not found"
+            );
+            StatusCode::NOT_FOUND.into_response()
+        }
+        Err(e) => {
+            tracing::error!(
+                source = SOURCE,
+                controller = "get_item_by_id",
+                id = item_id,
+                error = %e,
+                "get_item_by_id failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn update_item_name(
+    pool: PgPool,
+    item_id: i64,
+    body: UpdateItemRequest,
+    method: &'static str,
+    request_id: Option<&str>,
+) -> impl IntoResponse {
+    let name = body.name.trim().to_string();
+    tracing::info!(
+        source = SOURCE,
+        controller = "update_item_name",
+        method = method,
+        path = "/api/items/{id}",
+        id = item_id,
+        name = %name,
+        "update_item_name request received"
+    );
+    if name.is_empty() {
+        tracing::warn!(
+            source = SOURCE,
+            controller = "update_item_name",
+            id = item_id,
+            reason = "blank-name",
+            "update_item_name validation failed"
+        );
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "name must not be blank" })),
+        )
+            .into_response();
+    }
+    match crate::db::update_item_name(&pool, item_id, &name, request_id).await {
+        Ok(Some(row)) => {
+            let response = item_row_to_response(row);
+            tracing::info!(
+                source = SOURCE,
+                controller = "update_item_name",
+                id = item_id,
+                name = %response.name,
+                "update_item_name succeeded"
+            );
+            (StatusCode::OK, Json(response)).into_response()
+        }
+        Ok(None) => {
+            tracing::warn!(
+                source = SOURCE,
+                controller = "update_item_name",
+                id = item_id,
+                name = %name,
+                "update_item_name not found"
+            );
+            StatusCode::NOT_FOUND.into_response()
+        }
+        Err(e) => {
+            tracing::error!(
+                source = SOURCE,
+                controller = "update_item_name",
+                id = item_id,
+                error = %e,
+                "update_item_name failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// `PUT /api/items/{id}` — replace item name.
+pub async fn replace_item(
+    pool: PgPool,
+    item_id: i64,
+    body: UpdateItemRequest,
+    request_id: Option<&str>,
+) -> impl IntoResponse {
+    update_item_name(pool, item_id, body, "PUT", request_id).await
+}
+
+/// `PATCH /api/items/{id}` — update item name.
+pub async fn patch_item(
+    pool: PgPool,
+    item_id: i64,
+    body: UpdateItemRequest,
+    request_id: Option<&str>,
+) -> impl IntoResponse {
+    update_item_name(pool, item_id, body, "PATCH", request_id).await
+}
+
+/// `DELETE /api/items/{id}` — delete item by id.
+pub async fn delete_item(
+    pool: PgPool,
+    item_id: i64,
+    request_id: Option<&str>,
+) -> impl IntoResponse {
+    tracing::info!(
+        source = SOURCE,
+        controller = "delete_item",
+        method = "DELETE",
+        path = "/api/items/{id}",
+        id = item_id,
+        "delete_item request received"
+    );
+    match crate::db::delete_item_by_id(&pool, item_id, request_id).await {
+        Ok(true) => {
+            tracing::info!(
+                source = SOURCE,
+                controller = "delete_item",
+                id = item_id,
+                "delete_item succeeded"
+            );
+            StatusCode::NO_CONTENT.into_response()
+        }
+        Ok(false) => {
+            tracing::warn!(
+                source = SOURCE,
+                controller = "delete_item",
+                id = item_id,
+                "delete_item not found"
+            );
+            StatusCode::NOT_FOUND.into_response()
+        }
+        Err(e) => {
+            tracing::error!(
+                source = SOURCE,
+                controller = "delete_item",
+                id = item_id,
+                error = %e,
+                "delete_item failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
 pub async fn list_items(pool: PgPool, request_id: Option<&str>) -> impl IntoResponse {
     tracing::info!(
         source = SOURCE,

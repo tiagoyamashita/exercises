@@ -1,6 +1,6 @@
 //! OpenAPI spec + Swagger UI (utoipa), `/api/items` only — mirrors Java springdoc scope.
 
-use crate::items::{CreateItemRequest, CreateItemResponse, ItemResponse};
+use crate::items::{CreateItemRequest, CreateItemResponse, ItemResponse, UpdateItemRequest};
 use serde::Serialize;
 use utoipa::OpenApi;
 
@@ -47,17 +47,97 @@ fn items_list() {}
 )]
 fn items_create() {}
 
+/// `GET /api/items/{id}` — fetch one row by id.
+#[allow(dead_code)]
+#[utoipa::path(
+    get,
+    path = "/api/items/{id}",
+    tag = "Items",
+    params(
+        ("id" = i64, Path, description = "Item id"),
+        ("X-Request-ID" = Option<String>, Header, description = "Correlation id for logs and Postgres trace")
+    ),
+    responses(
+        (status = 200, description = "Item", body = ItemResponse),
+        (status = 404, description = "Not found"),
+        (status = 503, description = "Postgres not configured", body = ApiError),
+        (status = 500, description = "Database error", body = ApiError)
+    )
+)]
+fn items_get_by_id() {}
+
+/// `PUT /api/items/{id}` — replace item name.
+#[allow(dead_code)]
+#[utoipa::path(
+    put,
+    path = "/api/items/{id}",
+    tag = "Items",
+    request_body = UpdateItemRequest,
+    params(
+        ("id" = i64, Path, description = "Item id"),
+        ("X-Request-ID" = Option<String>, Header, description = "Correlation id for logs and Postgres trace")
+    ),
+    responses(
+        (status = 200, description = "Updated item", body = ItemResponse),
+        (status = 400, description = "Blank name", body = ApiError),
+        (status = 404, description = "Not found"),
+        (status = 503, description = "Postgres not configured", body = ApiError),
+        (status = 500, description = "Database error", body = ApiError)
+    )
+)]
+fn items_replace() {}
+
+/// `PATCH /api/items/{id}` — update item name.
+#[allow(dead_code)]
+#[utoipa::path(
+    patch,
+    path = "/api/items/{id}",
+    tag = "Items",
+    request_body = UpdateItemRequest,
+    params(
+        ("id" = i64, Path, description = "Item id"),
+        ("X-Request-ID" = Option<String>, Header, description = "Correlation id for logs and Postgres trace")
+    ),
+    responses(
+        (status = 200, description = "Updated item", body = ItemResponse),
+        (status = 400, description = "Blank name", body = ApiError),
+        (status = 404, description = "Not found"),
+        (status = 503, description = "Postgres not configured", body = ApiError),
+        (status = 500, description = "Database error", body = ApiError)
+    )
+)]
+fn items_patch() {}
+
+/// `DELETE /api/items/{id}` — delete item by id.
+#[allow(dead_code)]
+#[utoipa::path(
+    delete,
+    path = "/api/items/{id}",
+    tag = "Items",
+    params(
+        ("id" = i64, Path, description = "Item id"),
+        ("X-Request-ID" = Option<String>, Header, description = "Correlation id for logs and Postgres trace")
+    ),
+    responses(
+        (status = 204, description = "Deleted"),
+        (status = 404, description = "Not found"),
+        (status = 503, description = "Postgres not configured", body = ApiError),
+        (status = 500, description = "Database error", body = ApiError)
+    )
+)]
+fn items_delete() {}
+
 #[derive(OpenApi)]
 #[openapi(
-    paths(items_list, items_create),
-    components(schemas(ItemResponse, CreateItemRequest, CreateItemResponse, ApiError)),
+    paths(items_list, items_create, items_get_by_id, items_replace, items_patch, items_delete),
+    components(schemas(ItemResponse, CreateItemRequest, UpdateItemRequest, CreateItemResponse, ApiError)),
     tags(
         (name = "Items", description = "Shared PostgreSQL `items` table (Flyway schema from Java)")
     ),
     info(
         title = "WebServer BenchMark Rust API",
         version = "1.0",
-        description = "REST API under `/api/items`. Dashboard, observability, and stack-ping routes are excluded."
+        description = "REST CRUD for `/api/items`. Dashboard, observability, and stack-ping routes are excluded."
     )
 )]
 pub struct ApiDoc;

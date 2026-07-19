@@ -11,28 +11,23 @@ All Compose services share the **`webserver-benchmark`** bridge network.
 
 ### 1 — Inbound: browser → apps
 
-```plantuml
-@startuml inbound-apps
-skinparam componentStyle rectangle
-skinparam linetype ortho
+```mermaid
+flowchart LR
+  User["Browser / curl"]
 
-actor "Browser / curl" as User
+  subgraph inbound["Inbound HTTP (host ports)"]
+    Java["Java :8080"]
+    Python["Python :5000"]
+    Rust["Rust :8082"]
+    Zig["Zig :8083"]
+    RN["React Node :5174"]
+  end
 
-package "Inbound HTTP (host ports)" {
-  [Java\n:8080] as Java
-  [Python\n:5000] as Python
-  [Rust\n:8082] as Rust
-  [Zig\n:8083] as Zig
-  [React Node\n:5174] as RN
-}
-
-User --> Java : inbound
-User --> Python : inbound
-User --> Rust : inbound
-User --> Zig : inbound
-User --> RN : inbound
-
-@enduml
+  User -->|inbound| Java
+  User -->|inbound| Python
+  User -->|inbound| Rust
+  User -->|inbound| Zig
+  User -->|inbound| RN
 ```
 
 ### 2 — App-to-app (linked logs across microservices)
@@ -41,70 +36,46 @@ Dashboards **call each other over HTTP** so you can trace one user action across
 
 **Item relays** — multi-hop writes (trigger from Java or React Node dashboard):
 
-```plantuml
-@startuml item-relays
-skinparam componentStyle rectangle
-skinparam linetype ortho
+```mermaid
+flowchart TB
+  User["Browser"]
+  J["Java"]
+  P["Python"]
+  R["Rust"]
+  RN["React Node"]
+  PG[("PostgreSQL<br/>items table")]
 
-actor "Browser" as User
+  User -->|inbound<br/>dashboard AJAX| J
+  User -->|inbound<br/>GET/POST /java/api/items| RN
 
-[Java] as J
-[Python] as P
-[Rust] as R
-[React Node] as RN
-database "PostgreSQL\nitems table" as PG
+  J -->|outbound<br/>POST /api/items| R
+  J -->|outbound<br/>POST /api/items| P
+  J -->|outbound<br/>POST /api/items| RN
+  J -->|outbound<br/>POST /api/relay/react| P
+  P -->|outbound<br/>POST /api/items| RN
+  RN -->|outbound<br/>POST /api/items| J
 
-User --> J : inbound\n(dashboard AJAX)
-
-J -down-> R : outbound\nPOST /api/items
-J -down-> P : outbound\nPOST /api/items
-J -down-> RN : outbound\nPOST /api/items
-J -down-> P : outbound\nPOST /api/relay/react
-P -down-> RN : outbound\nPOST /api/items
-
-User --> RN : inbound\nGET/POST /java/api/items
-RN -down-> J : outbound\nPOST /api/items
-
-R --> PG : outbound\nINSERT items
-P --> PG : outbound\nINSERT items
-RN --> PG : outbound\nINSERT items
-J --> PG : outbound\nINSERT items
-
-note bottom of PG
-  Final destination: shared items table.
-  Same request_id on every hop →
-  filter Kibana: correlation.request_id
-  Java dashboard: rust-item-relay,
-  python-item-relay, react-node-item-relay,
-  python-react-relay (3-hop chain)
-end note
-
-@enduml
+  R -->|outbound<br/>INSERT items| PG
+  P -->|outbound<br/>INSERT items| PG
+  RN -->|outbound<br/>INSERT items| PG
+  J -->|outbound<br/>INSERT items| PG
 ```
+
+Final destination is the shared `items` table. Same `request_id` on every hop → filter Kibana: `correlation.request_id`. Java dashboard triggers: `rust-item-relay`, `python-item-relay`, `react-node-item-relay`, `python-react-relay` (3-hop chain).
 
 **Stack probes** — connectivity GETs from each app to peers and observability (`APP_STACK_*` / `PROBE_*` env vars):
 
-```plantuml
-@startuml stack-probes
-skinparam componentStyle rectangle
-skinparam linetype ortho
+```mermaid
+flowchart LR
+  Probers["Probers (outbound GET)<br/>Java · Python · Rust · Zig · React Node"]
+  Peers["Peer apps (inbound /health or /)<br/>Java · Python · Rust · React Node"]
+  Obs["Observability targets<br/>Prometheus · Grafana · Elasticsearch · Kibana"]
 
-package "Probers (outbound GET)\nJava · Python · Rust · Zig · React Node" as Probers
-
-package "Peer apps (inbound /health or /)\nJava · Python · Rust · React Node" as Peers
-
-package "Observability targets\nPrometheus · Grafana · Elasticsearch · Kibana" as Obs
-
-Probers ..> Peers : outbound GET\n/stack-ping · /stack-ping/<target>\n/stack-ping/:target · PROBE_*\n(each app → every peer except self)
-
-Probers ..> Obs : outbound GET\n(each app → every target)
-
-note bottom of Probers
-  Config: APP_STACK_* / PROBE_* env vars
-end note
-
-@enduml
+  Probers -.->|outbound GET<br/>/stack-ping · /stack-ping/target · PROBE_*<br/>each app → every peer except self| Peers
+  Probers -.->|outbound GET<br/>each app → every target| Obs
 ```
+
+Config: `APP_STACK_*` / `PROBE_*` env vars.
 
 Kafka async flows also carry `requestId` in the message payload so consumer logs stay on the same correlation id (see Kafka topics diagram below).
 
@@ -113,140 +84,119 @@ Kafka async flows also carry `requestId` in the message payload so consumer logs
 
 Three layers: **database**, **cache**, and **messaging**.
 
-```plantuml
-@startuml data-layers
-skinparam componentStyle rectangle
-skinparam linetype ortho
+```mermaid
+flowchart TB
+  subgraph Apps["Apps (outbound clients)"]
+    J["Java"]
+    P["Python"]
+    R["Rust"]
+    Z["Zig"]
+    RN["React Node"]
+  end
 
-package "Apps (outbound clients)" {
-  [Java] as J
-  [Python] as P
-  [Rust] as R
-  [Zig] as Z
-  [React Node] as RN
-}
+  subgraph Database["Database layer"]
+    PG[("PostgreSQL<br/>postgres:5432")]
+  end
 
-together {
-  package "Database layer" {
-    database "PostgreSQL\npostgres:5432" as PG
-  }
+  subgraph Cache["Cache layer"]
+    Redis[("Redis<br/>redis:6379<br/>shared sessions")]
+    RI["RedisInsight :5540"]
+  end
 
-  package "Cache layer" {
-    database "Redis\nredis:6379\nshared sessions" as Redis
-    [RedisInsight\n:5540] as RI
-  }
+  subgraph Messaging["Messaging layer"]
+    Kafka{{"Kafka<br/>kafka:9092"}}
+    KUI["Kafka UI :8090"]
+  end
 
-  package "Messaging layer" {
-    queue "Kafka\nkafka:9092" as Kafka
-    [Kafka UI\n:8090] as KUI
-  }
-}
+  J --> PG
+  P --> PG
+  R --> PG
+  Z --> PG
+  RN --> PG
 
-J --> PG
-P --> PG
-R --> PG
-Z --> PG
-RN --> PG
+  J --> Redis
+  P --> Redis
+  R --> Redis
+  Z --> Redis
+  RN --> Redis
 
-J --> Redis
-P --> Redis
-R --> Redis
-Z --> Redis
-RN --> Redis
+  J --> Kafka
+  P --> Kafka
+  R --> Kafka
+  RN --> Kafka
 
-J --> Kafka
-P --> Kafka
-R --> Kafka
-RN --> Kafka
-
-RI ..> Redis : outbound\n(admin)
-KUI ..> Kafka : outbound\n(admin)
-
-@enduml
+  RI -.->|outbound admin| Redis
+  KUI -.->|outbound admin| Kafka
 ```
 
 **Kafka topics** (async, on top of the messaging layer):
 
-```plantuml
-@startuml kafka-topics
-skinparam componentStyle rectangle
+```mermaid
+flowchart LR
+  J["Java"]
+  R["Rust"]
+  P["Python"]
+  K{{"Kafka"}}
+  PGU[("PostgreSQL<br/>users table")]
+  PGI[("PostgreSQL<br/>items table")]
 
-[Java] as J
-[Rust] as R
-[Python] as P
-queue "Kafka" as K
-database "PostgreSQL\nusers table" as PGU
-database "PostgreSQL\nitems table" as PGI
+  J -->|outbound<br/>publish create-user| K
+  R -->|outbound<br/>publish create-user| K
+  J -->|outbound<br/>publish create-item| K
 
-J -right-> K : outbound\npublish create-user
-R -right-> K : outbound\npublish create-user
-J -right-> K : outbound\npublish create-item
+  K -->|inbound<br/>consume create-user| J
+  K -->|inbound<br/>consume create-user| R
+  K -->|inbound<br/>consume create-item| P
 
-K -left-> J : inbound\nconsume create-user
-K -left-> R : inbound\nconsume create-user
-K -left-> P : inbound\nconsume create-item
-
-J ..> PGU : insert user
-R ..> PGU : insert user
-P ..> PGI : insert item
-
-note bottom of K
-  create-user: Java **or** Rust consumes
-  (shared consumer group)
-  create-item: Python only
-end note
-
-@enduml
+  J -.->|insert user| PGU
+  R -.->|insert user| PGU
+  P -.->|insert item| PGI
 ```
 
+`create-user`: Java **or** Rust consumes (shared consumer group). `create-item`: Python only.
 
 ### 4 — Observability & admin UIs
 
 
-```plantuml
-@startuml observability
-skinparam componentStyle rectangle
-skinparam linetype ortho
+```mermaid
+flowchart TB
+  User["Browser"]
 
-actor "Browser" as User
+  subgraph Apps["Apps"]
+    J["Java"]
+    P["Python"]
+    R["Rust"]
+    Z["Zig"]
+    RN["React Node"]
+  end
 
-package "Apps" {
-  [Java] as J
-  [Python] as P
-  [Rust] as R
-  [Zig] as Z
-  [React Node] as RN
-}
+  subgraph Metrics["Metrics (Prometheus pulls inbound)"]
+    Prom["Prometheus :9090"]
+    Graf["Grafana :3000"]
+  end
 
-package "Metrics (Prometheus pulls inbound)" {
-  [Prometheus\n:9090] as Prom
-  [Grafana\n:3000] as Graf
-}
+  subgraph Logs["Logs (Filebeat ships outbound)"]
+    LogFiles["apps/*/logs<br/>host mount"]
+    FB["Filebeat"]
+    LS["Logstash"]
+    ES[("Elasticsearch")]
+    Kib["Kibana :5601"]
+  end
 
-package "Logs (Filebeat ships outbound)" {
-  folder "apps/*/logs\n(host mount)" as Logs
-  [Filebeat] as FB
-  [Logstash] as LS
-  database "Elasticsearch" as ES
-  [Kibana\n:5601] as Kib
-}
+  Prom -->|inbound scrape| J
+  Prom -->|inbound scrape| P
+  Prom -->|inbound scrape| R
+  Prom -->|inbound scrape| Z
+  Prom -->|inbound scrape| RN
 
-Prom -down-> J : inbound scrape
-Prom -down-> P : inbound scrape
-Prom -down-> R : inbound scrape
-Prom -down-> Z : inbound scrape
-Prom -down-> RN : inbound scrape
+  Graf -->|outbound query| Prom
+  User -->|inbound| Graf
+  User -->|inbound| Kib
 
-Graf --> Prom : outbound query
-User --> Graf : inbound
-User --> Kib : inbound
-
-Logs --> FB : read
-FB --> LS : outbound ship
-LS --> ES : outbound ship
-Kib --> ES : outbound query
-
-@enduml
+  LogFiles -->|read| FB
+  FB -->|outbound ship| LS
+  LS -->|outbound ship| ES
+  Kib -->|outbound query| ES
 ```
 
 | Layer | Direction | Connection |
@@ -264,7 +214,7 @@ Kib --> ES : outbound query
 
 Start the full graph: `podman compose up -d --build`. Apps only: `podman compose -f docker-compose.apps.yml up -d --build`. Observability only: `podman compose -f docker-compose.observability.yml up -d`.
 
-_PlantUML blocks render in editors with a PlantUML extension, or paste into [plantuml.com](https://www.plantuml.com/plantuml). GitHub markdown preview does not render PlantUML natively (use Mermaid there, or export PNG/SVG)._
+_Mermaid diagrams render natively in GitHub markdown preview and most editors with Mermaid support._
 
 ## Application servers
 
