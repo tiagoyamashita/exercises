@@ -12,6 +12,16 @@ All Compose services share the **`webserver-benchmark`** bridge network.
 ### 1 — Inbound: browser → apps
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart LR
   User["Browser / curl"]
 
@@ -37,6 +47,16 @@ Dashboards **call each other over HTTP** so you can trace one user action across
 **Item relays** — multi-hop writes (trigger from Java or React Node dashboard):
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart TB
   User["Browser"]
   J["Java"]
@@ -66,6 +86,16 @@ Final destination is the shared `items` table. Same `request_id` on every hop �
 **Stack probes** — connectivity GETs from each app to peers and observability (`APP_STACK_*` / `PROBE_*` env vars):
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart LR
   Probers["Probers (outbound GET)<br/>Java · Python · Rust · Zig · React Node"]
   Peers["Peer apps (inbound /health or /)<br/>Java · Python · Rust · React Node"]
@@ -85,6 +115,16 @@ Kafka async flows also carry `requestId` in the message payload so consumer logs
 Three layers: **database**, **cache**, and **messaging**.
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart TB
   subgraph Apps["Apps (outbound clients)"]
     J["Java"]
@@ -132,6 +172,16 @@ flowchart TB
 **Kafka topics** (async, on top of the messaging layer):
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart LR
   J["Java"]
   R["Rust"]
@@ -159,6 +209,16 @@ flowchart LR
 
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart TB
   User["Browser"]
 
@@ -214,7 +274,7 @@ flowchart TB
 
 Start the full graph: `podman compose up -d --build`. Apps only: `podman compose -f docker-compose.apps.yml up -d --build`. Observability only: `podman compose -f docker-compose.observability.yml up -d`.
 
-_Mermaid diagrams render natively in GitHub markdown preview and most editors with Mermaid support._
+_Mermaid diagrams render natively in GitHub markdown preview and most editors with Mermaid support. Spacing is set via Mermaid CSS (`themeCSS`) and `flowchart.padding`._
 
 ## Application servers
 
@@ -404,6 +464,16 @@ $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';'
 Both can run the **same container images**, but they target different environments and operational models:
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 12
+    htmlLabels: true
+  themeCSS: |-
+    .nodeLabel { padding: 6px 10px; }
+    .edgeLabel { padding: 2px 6px; }
+    .cluster-label { padding: 4px 8px; }
+---
 flowchart LR
   subgraph compose["docker compose — one host"]
     direction TB
