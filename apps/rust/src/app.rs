@@ -1,8 +1,8 @@
-use axum::extract::{Extension, Form, Query, Request, State};
+use axum::extract::{Extension, Form, Path, Query, Request, State};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Json, Redirect, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, options, post, put};
 use axum::Router;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -304,6 +304,78 @@ async fn create_item(
     .into_response()
 }
 
+async fn get_item(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+    Path(item_id): Path<i64>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pg_pool.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({
+                "error": "Postgres not configured (set DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD)"
+            })),
+        )
+            .into_response();
+    };
+    crate::items::get_item_by_id(pool, item_id, Some(&request_id.0))
+        .await
+        .into_response()
+}
+
+async fn replace_item(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+    Path(item_id): Path<i64>,
+    Json(body): Json<crate::items::UpdateItemRequest>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pg_pool.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "Postgres not configured" })),
+        )
+            .into_response();
+    };
+    crate::items::replace_item(pool, item_id, body, Some(&request_id.0))
+        .await
+        .into_response()
+}
+
+async fn patch_item(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+    Path(item_id): Path<i64>,
+    Json(body): Json<crate::items::UpdateItemRequest>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pg_pool.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "Postgres not configured" })),
+        )
+            .into_response();
+    };
+    crate::items::patch_item(pool, item_id, body, Some(&request_id.0))
+        .await
+        .into_response()
+}
+
+async fn delete_item(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+    Path(item_id): Path<i64>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pg_pool.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "Postgres not configured" })),
+        )
+            .into_response();
+    };
+    crate::items::delete_item(pool, item_id, Some(&request_id.0))
+        .await
+        .into_response()
+}
+
 async fn publish_create_user_kafka(
     State(state): State<AppState>,
     Extension(request_id): Extension<crate::request_id::RequestId>,
@@ -338,6 +410,25 @@ async fn publish_create_user_kafka(
     crate::kafka::publish_create_user_event(config, query, &request_id.0).await
 }
 
+async fn publish_create_item_kafka(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+    Query(query): Query<crate::kafka::PublishCreateItemQuery>,
+) -> impl IntoResponse {
+    let Some(config) = state.kafka_config.as_ref() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({
+                "ok": false,
+                "requestId": request_id.0,
+                "error": "Kafka not configured (set KAFKA_BOOTSTRAP_SERVERS and ensure broker is reachable)"
+            })),
+        )
+            .into_response();
+    };
+    crate::kafka::publish_create_item_event(config, query, &request_id.0).await
+}
+
 async fn welcome_redirect(
     Extension(_request_id): Extension<crate::request_id::RequestId>,
 ) -> Redirect {
@@ -365,6 +456,10 @@ async fn health() -> impl IntoResponse {
         )],
         "ok",
     )
+}
+
+async fn observability_health() -> impl IntoResponse {
+    Json(serde_json::json!({ "status": "UP", "ok": true }))
 }
 
 async fn observability_sample_log(
@@ -574,16 +669,77 @@ pub fn build_router(state: AppState) -> Router {
         .route("/", get(stack_landing))
         .route("/tests", get(tests_dashboard))
         .route("/health", get(health))
+        .route("/api/observability/health", get(observability_health))
         .route("/api/observability/sample-log", get(observability_sample_log))
+        .route("/api/dashboard-meta", get(crate::dashboard_meta::meta))
+        .route("/api/hello-from-java", get(crate::relay::hello_from_java))
         .route("/welcome", get(welcome_redirect))
         .route("/stack-ping/:target", get(crate::stack_ping::stack_ping_handler))
+        .route(
+            "/dashboard/stack-ping/all",
+            get(crate::stack_ping::dashboard_stack_ping_all),
+        )
+        .route(
+            "/dashboard/stack-ping/:target",
+            get(crate::stack_ping::dashboard_stack_ping_handler),
+        )
         .route("/tests/run", post(run_tests_post))
         .route("/tests/source", get(test_source))
+        .route(
+            "/testingendpoint",
+            get(crate::testing_endpoint::get)
+                .post(crate::testing_endpoint::post)
+                .put(crate::testing_endpoint::put)
+                .patch(crate::testing_endpoint::patch)
+                .delete(crate::testing_endpoint::delete)
+                .options(crate::testing_endpoint::options),
+        )
         .route("/api/items", get(list_items).post(create_item))
-        .route("/api/users", post(crate::users_api::create_user))
+        .route(
+            "/api/items/:id",
+            get(get_item)
+                .put(replace_item)
+                .patch(patch_item)
+                .delete(delete_item),
+        )
+        .route(
+            "/api/users",
+            get(crate::users_api::list_users).post(crate::users_api::create_user),
+        )
         .route(
             "/api/users/publish-create-user",
             post(publish_create_user_kafka),
+        )
+        .route(
+            "/api/users/:id",
+            get(crate::users_api::get_user_by_id)
+                .put(crate::users_api::replace_user)
+                .patch(crate::users_api::patch_user)
+                .delete(crate::users_api::delete_user),
+        )
+        .route(
+            "/dashboard/users/publish-create-user",
+            post(publish_create_user_kafka),
+        )
+        .route(
+            "/dashboard/items/publish-create-item",
+            post(publish_create_item_kafka),
+        )
+        .route(
+            "/dashboard/items/add-via-python",
+            post(crate::relay::add_via_python),
+        )
+        .route(
+            "/dashboard/items/add-via-rust",
+            post(crate::relay::add_via_rust),
+        )
+        .route(
+            "/dashboard/items/add-via-react-node",
+            post(crate::relay::add_via_react_node),
+        )
+        .route(
+            "/dashboard/relays/python-react",
+            post(crate::relay::relay_python_react),
         )
         .route("/api/auth/ensure", post(crate::auth::ensure_session))
         .route("/api/auth/login", post(crate::auth::login))

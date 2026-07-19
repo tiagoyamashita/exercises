@@ -20,6 +20,7 @@ pub struct StackLinks {
     pub react_node_browser_url: String,
     java_base_url: String,
     python_base_url: String,
+    rust_base_url: String,
     prometheus_base_url: String,
     grafana_base_url: String,
     elasticsearch_base_url: String,
@@ -63,6 +64,7 @@ impl StackLinks {
             ),
             java_base_url: java_base,
             python_base_url: read_env("APP_STACK_PYTHON_BASE_URL", "http://127.0.0.1:5000"),
+            rust_base_url: read_env("APP_STACK_RUST_BASE_URL", "http://127.0.0.1:8082"),
             prometheus_base_url: read_env("APP_STACK_PROMETHEUS_BASE_URL", "http://127.0.0.1:9090"),
             grafana_base_url: read_env("APP_STACK_GRAFANA_BASE_URL", "http://127.0.0.1:3000"),
             elasticsearch_base_url: read_env(
@@ -84,6 +86,41 @@ impl StackLinks {
             kibana_browser_url: self.kibana_browser_url.clone(),
             react_node_browser_url: self.react_node_browser_url.clone(),
         }
+    }
+
+    pub fn java_base_url(&self) -> &str {
+        &self.java_base_url
+    }
+
+    pub fn python_base_url(&self) -> &str {
+        &self.python_base_url
+    }
+
+    pub fn rust_base_url(&self) -> &str {
+        &self.rust_base_url
+    }
+
+    pub fn react_node_base_url(&self) -> &str {
+        &self.react_node_base_url
+    }
+
+    pub fn ping_all(&self, request_id: Option<&str>) -> serde_json::Value {
+        let targets = [
+            "postgres",
+            "redis",
+            "java",
+            "python",
+            "prometheus",
+            "grafana",
+            "elasticsearch",
+            "kibana",
+            "react-node",
+        ];
+        let results: Vec<StackPingResult> = targets
+            .iter()
+            .map(|target| self.ping(target, request_id))
+            .collect();
+        serde_json::json!({ "results": results })
     }
 
     pub fn ping(&self, target: &str, request_id: Option<&str>) -> StackPingResult {
@@ -336,5 +373,32 @@ pub async fn stack_ping_handler(
             "stack_ping_handler downstream unreachable"
         );
     }
+    Json(result)
+}
+
+pub async fn dashboard_stack_ping_handler(
+    Path(target): Path<String>,
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+) -> impl IntoResponse {
+    stack_ping_handler(Path(target), State(state), Extension(request_id)).await
+}
+
+pub async fn dashboard_stack_ping_all(
+    State(state): State<AppState>,
+    Extension(request_id): Extension<crate::request_id::RequestId>,
+) -> impl IntoResponse {
+    tracing::info!(
+        source = "src/stack_ping.rs",
+        controller = "dashboard_stack_ping_all",
+        method = "GET",
+        path = "/dashboard/stack-ping/all",
+        "dashboard_stack_ping_all request received"
+    );
+    let rid = request_id.0.clone();
+    let stack = state.stack_links.clone();
+    let result = tokio::task::spawn_blocking(move || stack.ping_all(Some(&rid)))
+        .await
+        .unwrap_or_else(|e| serde_json::json!({ "error": format!("join error: {e}") }));
     Json(result)
 }

@@ -190,3 +190,148 @@ pub async fn insert_item(
         created_at: format_created_at(row.2),
     })
 }
+
+pub async fn find_item_by_id(
+    pool: &PgPool,
+    item_id: i64,
+    request_id: Option<&str>,
+) -> Result<Option<ItemRow>, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let row: Option<(i64, String, NaiveDateTime)> = sqlx::query_as(
+        "SELECT id, name, created_at FROM items WHERE id = $1",
+    )
+    .bind(item_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|(id, name, created_at)| ItemRow {
+        id,
+        name,
+        created_at: format_created_at(created_at),
+    }))
+}
+
+pub async fn update_item_name(
+    pool: &PgPool,
+    item_id: i64,
+    name: &str,
+    request_id: Option<&str>,
+) -> Result<Option<ItemRow>, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let row: Option<(i64, String, NaiveDateTime)> = sqlx::query_as(
+        "UPDATE items SET name = $1 WHERE id = $2 RETURNING id, name, created_at",
+    )
+    .bind(name)
+    .bind(item_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|(id, name, created_at)| ItemRow {
+        id,
+        name,
+        created_at: format_created_at(created_at),
+    }))
+}
+
+pub async fn delete_item_by_id(
+    pool: &PgPool,
+    item_id: i64,
+    request_id: Option<&str>,
+) -> Result<bool, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let deleted: Option<i64> = sqlx::query_scalar("DELETE FROM items WHERE id = $1 RETURNING id")
+        .bind(item_id)
+        .fetch_optional(&mut *conn)
+        .await?;
+    Ok(deleted.is_some())
+}
+
+pub struct UserWithCreatedAt {
+    pub id: i64,
+    pub name: String,
+    pub email: String,
+    pub created_at: String,
+}
+
+pub async fn list_users(
+    pool: &PgPool,
+    request_id: Option<&str>,
+) -> Result<Vec<UserWithCreatedAt>, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let rows: Vec<(i64, String, String, NaiveDateTime)> = sqlx::query_as(
+        "SELECT id, name, email, created_at FROM users ORDER BY id",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, name, email, created_at)| UserWithCreatedAt {
+            id,
+            name,
+            email,
+            created_at: format_created_at(created_at),
+        })
+        .collect())
+}
+
+pub async fn find_user_with_created_at(
+    pool: &PgPool,
+    user_id: i64,
+    request_id: Option<&str>,
+) -> Result<Option<UserWithCreatedAt>, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let row: Option<(i64, String, String, NaiveDateTime)> = sqlx::query_as(
+        "SELECT id, name, email, created_at FROM users WHERE id = $1",
+    )
+    .bind(user_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|(id, name, email, created_at)| UserWithCreatedAt {
+        id,
+        name,
+        email,
+        created_at: format_created_at(created_at),
+    }))
+}
+
+pub async fn update_user(
+    pool: &PgPool,
+    user_id: i64,
+    name: &str,
+    email: &str,
+    request_id: Option<&str>,
+) -> Result<Option<UserWithCreatedAt>, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let row: Option<(i64, String, String, NaiveDateTime)> = sqlx::query_as(
+        "UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email, created_at",
+    )
+    .bind(name)
+    .bind(email)
+    .bind(user_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|(id, name, email, created_at)| UserWithCreatedAt {
+        id,
+        name,
+        email,
+        created_at: format_created_at(created_at),
+    }))
+}
+
+pub async fn delete_user_by_id(
+    pool: &PgPool,
+    user_id: i64,
+    request_id: Option<&str>,
+) -> Result<bool, sqlx::Error> {
+    let mut conn = pool.acquire().await?;
+    stamp_application_name(&mut conn, request_id).await?;
+    let deleted: Option<i64> = sqlx::query_scalar("DELETE FROM users WHERE id = $1 RETURNING id")
+        .bind(user_id)
+        .fetch_optional(&mut *conn)
+        .await?;
+    Ok(deleted.is_some())
+}
